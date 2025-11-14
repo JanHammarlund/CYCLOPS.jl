@@ -1,5 +1,15 @@
 module CYCLOPS
 export cyclops, mhe, hsn, mhd, nparams, ⊙, ⊗, ⊕, ⊖, ⊘, ⩕
+export CyclopsHypersphereDimensionError
+export CyclopsInputHypersphereDimensionError
+export CyclopsMultiHotDimensionError
+export CheckCyclopsInput
+export CyclopsInputMultiHotDimensionMismatch
+export CyclopsMultiHotParameterDimensionMismatch
+export CheckMultiHotTransformation
+export CyclopsHyperSphereDomainError
+export CyclopsHyperSphereDivideError
+export CheckHSNdomain
 using CUDA, Flux, Statistics, ProgressMeter, Plots, Random
 
     """
@@ -18,8 +28,12 @@ using CUDA, Flux, Statistics, ProgressMeter, Plots, Random
     [`CheckCyclopsInput`](@ref), [`CyclopsInputHypersphereDimensionError`](@ref),
     [`CyclopsMultiHotDimensionError`](@ref), [`cyclops`](@ref)
     """
-    struct CyclopsHypersphereDimensionError <: Exception end
-    CyclopsHypersphereDimensionError(val::Int) = error("CyclopsHypersphereDimensionError: `c` = $(val), but `c` must be ≥ 2.")
+    struct CyclopsHypersphereDimensionError <: Exception 
+        c::Int
+    end
+    
+    Base.showerror(io::IO, e::CyclopsHypersphereDimensionError) =
+        print(io, "CyclopsHypersphereDimensionError: `c` = $(e.c), but `c` must be ≥ 2.")
 
     """
         CyclopsInputHypersphereDimensionError(n::Int, c::Int)
@@ -37,8 +51,13 @@ using CUDA, Flux, Statistics, ProgressMeter, Plots, Random
     [`CheckCyclopsInput`](@ref), [`CyclopsHypersphereDimensionError`](@ref),
     [`CyclopsMultiHotDimensionError`](@ref), [`cyclops`](@ref)
     """
-    struct CyclopsInputHypersphereDimensionError <: Exception end
-    CyclopsInputHypersphereDimensionError(nval::Int, cval::Int) = error("CyclopsInputHypersphereDimensionError: `n` = $(nval) ≤ `c`, but `n` must be > $(cval) or `c` must be < $(nval).")
+    struct CyclopsInputHypersphereDimensionError <: Exception 
+        n::Int
+        c::Int
+    end
+
+    Base.showerror(io::IO, e::CyclopsInputHypersphereDimensionError) =
+        print(io, "CyclopsInputHypersphereDimensionError: `n` = $(e.n) ≤ `c`, but `n` must be > $(e.c).")
 
     """
         CyclopsMultiHotDimensionError(m::Int)
@@ -56,8 +75,12 @@ using CUDA, Flux, Statistics, ProgressMeter, Plots, Random
     [`CheckCyclopsInput`](@ref), [`CyclopsHypersphereDimensionError`](@ref),
     [`CyclopsInputHypersphereDimensionError`](@ref), [`cyclops`](@ref)
     """
-    struct CyclopsMultiHotDimensionError <: Exception end
-    CyclopsMultiHotDimensionError(val::Int) = error("CyclopsMultiHotDimensionError: `m` = $(val) < 0, but `m` must be ≥ 0 ")
+    struct CyclopsMultiHotDimensionError <: Exception 
+        m::Int
+    end
+
+    Base.showerror(io::IO, e::CyclopsMultiHotDimensionError) =
+        print(io, "CyclopsMultiHotDimensionError: `m` = $(e.m) < 0, but `m` must be ≥ 0.")
 
     """
         CheckCyclopsInput(n::Int, m::Int, c::Int)
@@ -105,8 +128,7 @@ using CUDA, Flux, Statistics, ProgressMeter, Plots, Random
     end
 
     """
-        cyclops(n::Int, m::Int[, c::Int=2])
-        cyclops(n::Int)
+        cyclops(n::Int[, m::Int=0, c::Int=2])
 
     Creates an instance of cyclops.
 
@@ -180,17 +202,11 @@ using CUDA, Flux, Statistics, ProgressMeter, Plots, Random
     [`CheckCyclopsInput`](@ref), [`CyclopsHypersphereDimensionError`](@ref),
     [`CyclopsInputHypersphereDimensionError`](@ref), [`CyclopsMultiHotDimensionError`](@ref)
     """
-    function cyclops(n_eig::Int, n_multi::Int, n_circ::Int=2)        
+    function cyclops(n_eig::Int, n_multi::Int=0, n_circ::Int=2)        
         CheckCyclopsInput(n_eig, n_multi, n_circ)
         n_batch = n_multi == 0 ? 0 : 1
 
         return cyclops(rand(Float32, n_eig, n_multi), rand(Float32, n_eig, n_multi), rand(Float32, n_eig, n_batch), Dense(n_eig => n_circ), Dense(n_circ => n_eig))
-    end
-
-    function cyclops(n_eig::Int)
-        CheckCyclopsInput(n_eig, 0, 2)
-
-        return cyclops(rand(Float32, n_eig, 0), rand(Float32, n_eig, 0), rand(Float32, n_eig, 0), Dense(n_eig => 2), Dense(2 => n_eig))
     end
 
     """
@@ -330,18 +346,21 @@ using CUDA, Flux, Statistics, ProgressMeter, Plots, Random
     # See also
     [`CheckHSNdomain`](@ref), [`CyclopsHyperSphereDivideError`](@ref), [`cyclops`](@ref)
     """
-    struct CyclopsHyperSphereDomainError <: Exception end
-    CyclopsHyperSphereDomainError(x::Vector{Float32}) = error("CyclopsHyperSphereDomainError: `NaN` at $(findall(isnan.(x))).")
+    struct CyclopsHyperSphereDomainError <: Exception
+        x::Array{Float32}
+    end
+
+    Base.showerror(io::IO, e::CyclopsHyperSphereDomainError) = print(io, "CyclopsHyperSphereDomainError: `NaN` at ", findall(isnan, e.x))
 
     """
         CyclopsHyperSphereDivideError()
 
-    An error when all of the inputs to `hsn` are `0`.
+    An error when all of the inputs to the hypersphere node (`hsn`) are `0`.
 
     # Examples
     ```julia-repl
     julia> hsn(Float32.([0, 0]))
-    ERROR: CyclopsHyperSphereDivideError: All values passed to `hsn` are `0`.
+    ERROR: CyclopsHyperSphereDivideError: All values passed to the hypershpere node are `0`.
     [...]
     ```
 
@@ -349,8 +368,7 @@ using CUDA, Flux, Statistics, ProgressMeter, Plots, Random
     [`CheckHSNdomain`](@ref), [`CyclopsHyperSphereDomainError`](@ref), [`cyclops`](@ref)
     """
     struct CyclopsHyperSphereDivideError <: Exception end
-    Base.showerror(io::IO, e::CyclopsHyperSphereDivideError) =
-        print(io, "CyclopsHyperSphereDivideError: All values passed to `hsn` are `0`.")
+    Base.showerror(io::IO, e::CyclopsHyperSphereDivideError) = print(io, "CyclopsHyperSphereDivideError: All values passed to the hypershpere node are `0`.")
 
     """
         CheckHSNdomain(x::Vector{Float32})
@@ -422,23 +440,31 @@ using CUDA, Flux, Statistics, ProgressMeter, Plots, Random
 
     An error when `x` and `m` do not have the same number of rows.
     """
-    struct CyclopsInputMultiHotDimensionMismatch <: Exception end
-    function CyclopsInputMultiHotDimensionMismatch(x::Vector{Float32}, m::Array{Float32})
-        error("CyclopsInputMultiHotDimensionMismatch: Input `x` and multi-hot parameters do not have the same number of rows.
-\nInput = $(length(x)) ≠ $(size(m, 1)) = Multi-hot Parameters\n")
+    struct CyclopsInputMultiHotDimensionMismatch <: Exception 
+        x::Vector{Float32}
+        m::Array{Float32}
     end
+    
+    Base.showerror(io::IO, e::CyclopsInputMultiHotDimensionMismatch) = 
+        print(io, 
+            "CyclopsInputMultiHotDimensionMismatch: Input `x` and multi-hot parameters do not have the same number of rows.\n", 
+            "Input = $(length(e.x)) ≠ $(size(e.m, 1)) = Multi-hot Parameters\n")
 
     """
         CyclopsMultiHotParameterDimensionMismatch(h::Vector{Int}, m::Array{Float32})
 
     An error when the multi-hot encoding does not have as many rows as the multi-hot parameters has columns.
     """
-    struct CyclopsMultiHotParameterDimensionMismatch <: Exception end
-    function CyclopsMultiHotParameterDimensionMismatch(h::Vector{Int}, m::Array{Float32})
-        error("CyclopsMultiHotParameterDimensionMismatch: Multi-hot encoding `h` and multi-hot parameters do not have fitting dimensions.
-\nMulti-hot encoding must have as many rows as the multi-hot parameters have columns.\n
-\nMulti-hot encoding = $(length(h)) ≠ $(size(m, 2)) = Multi-hot Parameters\n")
+    struct CyclopsMultiHotParameterDimensionMismatch <: Exception 
+        h::Vector{Int}
+        m::Array{Float32}
     end
+    
+    Base.showerror(io::IO, e::CyclopsMultiHotParameterDimensionMismatch) =
+        print(io,
+            "CyclopsMultiHotParameterDimensionMismatch: Multi-hot encoding `h` and multi-hot parameters do not have fitting dimensions.\n",
+            "Multi-hot encoding must have as many rows as the multi-hot parameters have columns.\n",
+            "Multi-hot encoding = $(length(e.h)) ≠ $(size(e.m, 2)) = Multi-hot Parameters\n")
 
     """
         CheckMultiHotTransformation(x::Vector{Float32}, h::Vector{Int}, m::Vector{Float32})
