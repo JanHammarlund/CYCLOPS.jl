@@ -108,19 +108,34 @@ using Random
     end
     
     @testset "otimes" begin
-        m_otimes = methods(⊗);
-        @test any(m_otimes -> m_otimes.sig == Tuple{typeof(⊗), AbstractArray{<:Number}, Union{Number, AbstractArray{<:Number}}}, m_otimes)
+        otimes_found_methods = Set(m.sig for m in methods(⊗));
+        otimes_expected_methods = Set([
+            Tuple{typeof(⊗), AbstractArray{<:Number}, Union{Number, AbstractArray{<:Number}}}
+        ])
 
-        x = hcat(ones(3), 2*ones(3))
+        @test otimes_expected_methods ⊆ otimes_found_methods
+
+        x = ones(3)
         y1 = [1, 0]
         y2 = [0, 1]
         y3 = [1, 0, 1]
 
-        @test x ⊗ y1 == [1, 1, 1]
-        @test x ⊗ y2 == [2, 2, 2]
-        @test_throws DimensionMismatch x ⊗ y3
-        @test_throws DimensionMismatch x ⊗ 1
+        # Tuple{typeof(⊗), AbstractArray{<:Number}, Number}
+        @test x ⊗ 2 == [2, 2, 2]
+
+        # Tuple{typeof(⊗), AbstractArray{<:Number}, AbstractArray{<:Number}}
+        @test [x 2*x] ⊗ y1 == [1, 1, 1]
+        @test [x 2*x] ⊗ y2 == [2, 2, 2]
+
+        # Tuple{typeof(⊗), Number, Number}
         @test_throws MethodError 1 ⊗ 1
+        
+        # Dimension Mismatch
+        @test_throws DimensionMismatch x ⊗ y3
+        @test_throws "x has 1 columns and y has 3 rows." x ⊗ y3
+
+        @test_throws DimensionMismatch [x 2*x] ⊗ 1
+        @test_throws "x has 2 columns and y has 1 rows." [x 2*x] ⊗ 1
     end
     
     @testset "odot" begin
