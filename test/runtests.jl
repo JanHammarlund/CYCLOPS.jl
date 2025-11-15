@@ -2,134 +2,149 @@ using CYCLOPS
 using Test
 using Random
 
-# CYCLOPS
-#   cyclops constructor, 41 tests tests
-#       ✓ invalid arguments, 18 tests
-#           ✓ invalid c, c < 2, 4 tests
-#               ✓ CheckCyclopsInput, 2 tests
-#               ✓ cyclops, 2 tests
-#           ✓ invalid n, n ≤ c, 4 tests
-#               ✓ CheckCyclopsInput, 2 tests
-#               ✓ cyclops, 2 tests
-#           ✓ invalid m, m < 0, 4 tests
-#               ✓ CheckCyclopsInput, 2 tests
-#               ✓ cyclops, 2 tests
-#           ✓ method error, 6 tests
-#               ✓ CheckCyclopsInput, 3 tests
-#               ✓ cyclops, 3 tests
-#       ✓ valid arguments, 22 tests
-#           ✓ multi-hot model, 11 tests
-#               ✓ type, 1 test
-#               ✓ fieldnames, 1 test
-#               ✓ parameter number, 1 test
-#               ✓ property dimensions, 7 tests
-#           ✓ standard model, 11 tests
-#               ✓ type, 1 test
-#               ✓ fieldnames, 1 test
-#               ✓ parameter number, 1 test
-#               ✓ property dimensions, 7 tests
-#   cyclops function
-#       multi-hot layer
-#           invalid arguments, 16 tests
-#               ✓ n doesn't match input, 8 tests
-#                   ✓ CheckMultiHotTransformation, 2 tests
-#                   ✓ mhe, 2 tests
-#                   ✓ mhd, 2 tests
-#                   ✓ m::cyclops, 2 tests
-#               ✓ m doesn't match input, 8 tests
-#                   ✓ CheckMultiHotTransformation, 2 tests
-#                   ✓ mhe, 2 tests
-#                   ✓ mhd, 2 tests
-#                   ✓ m::cyclops, 2 tests
-#           valid arguments
-#       hypershpere node
-#           invalid arguments
-#           valid arguments, 15 tests
-#       
+# cyclops
+#   constructor
+#       CheckCyclopsInput
+#           CyclopsHypersphereDimensionError
+#           CyclopsInputHypersphereDimensionError
+#           CyclopsMultiHotDimensionError
+#   function
+#       mhe, mhd
+#           CheckMultiHotTransformation
+#               CyclopsInputMultiHotDimensionMismatch
+#               CyclopsMultiHotParameterDimensionMismatch
+#       hsn
+#           CheckHSNdomain
+#               CyclopsHyperSphereDomainError
+#               CyclopsHyperSphereDivideError
+
+# nparams 
+
+# ⊙, ⊗, ⊕, ⊖, ⊘, ⩕
+@testset "operators" begin
+
+    @testset "oplus" begin
+        oplus_found_methods = Set(m.sig for m in methods(⊕));
+        oplus_expected_methods = Set([
+            Tuple{typeof(⊕), Number, AbstractArray{<:Number}},
+            Tuple{typeof(⊕), AbstractArray{<:Number}, Number},
+            Tuple{typeof(⊕), AbstractArray{<:Number}, AbstractArray{<:Number}}
+        ])
+            
+        @test oplus_expected_methods ⊆ oplus_found_methods
+            
+        x = [1, 2, 3]   # ::AbstractArray{<:Number}
+        y1 = 1          # ::Number
+        y2 = [3, 2, 1]  # ::AbstractArray{<:Number}
+            
+        # Tuple{typeof(⊕), AbstractArray{<:Number}, Number},
+        @test x ⊕ y1 == [2, 3, 4]
+        @test [x x] ⊕ y1 == [2 2; 3 3; 4 4]
+
+        # Tuple{typeof(⊕), Number, AbstractArray{<:Number}}
+        @test y1 ⊕ x == [2, 3, 4]
+        @test y1 ⊕ [x x] == [2 2; 3 3; 4 4]
+
+        # Tuple{typeof(⊕), AbstractArray{<:Number}, AbstractArray{<:Number}}
+        @test x ⊕ y2 == [4, 4, 4]
+        @test [x x] ⊕ y2 == [4 4; 4 4; 4 4]
+        @test y2 ⊕ [x x] == [4 4; 4 4; 4 4]
+        @test [x x] ⊕ [y2 y2] == [4 4; 4 4; 4 4]
+
+        # Tuple{typeof(⊕), Number, Number}
+        @test_throws MethodError 1 ⊕ 1
+
+        # Dimension Mismatch
+        @test_throws DimensionMismatch ones(3) ⊕ ones(4)
+        @test_throws "x has 3 and y has 4." ones(3) ⊕ ones(4)
+
+        @test_throws DimensionMismatch [x x] ⊕ [y2 y2 y2]
+        @test_throws "x and y don't have matching dimensions" [x x] ⊕ [y2 y2 y2]
+
+        @test_throws DimensionMismatch [x x] ⊕ ones(4)
+        @test_throws "x has 3 and y has 4." [x x] ⊕ ones(4)
+    end
+    
+    @testset "ominus" begin
+        ominus_found_methods = Set(m.sig for m in methods(⊖));
+        ominus_expected_methods = Set([
+            Tuple{typeof(⊖), Number, AbstractArray{<:Number}},
+            Tuple{typeof(⊖), AbstractArray{<:Number}, Number},
+            Tuple{typeof(⊖), AbstractArray{<:Number}, AbstractArray{<:Number}}
+        ])
+            
+        @test ominus_expected_methods ⊆ ominus_found_methods
+
+        x = [1, 2, 3]   # ::AbstractArray{<:Number}
+        y1 = 1          # ::Number
+        y2 = [3, 2, 1]  # ::AbstractArray{<:Number}
+
+        # Tuple{typeof(⊖), AbstractArray{<:Number}, Number}
+        @test x ⊖ y1 == [0, 1, 2]
+        @test [x x] ⊖ y1 == [0 0; 1 1; 2 2]
+
+        # Tuple{typeof(⊖), Number, AbstractArray{<:Number}}
+        @test y1 ⊖ x == [0, -1, -2]
+        @test y1 ⊖ [x x] == [0 0; -1 -1; -2 -2]
+
+        # Tuple{typeof(⊖), AbstractArray{<:Number}, AbstractArray{<:Number}}
+        @test x ⊖ y2 == [-2, 0, 2]
+        @test [x x] ⊖ y2 == [-2 -2; 0 0; 2 2]
+        @test y2 ⊖ [x x] == [2 2; 0 0; -2 -2]
+        @test [x x] ⊖ [y2 y2] == [-2 -2; 0 0; 2 2]
+
+        # Tuple{typeof(⊖), Number, Number}
+        @test_throws MethodError 1 ⊖ 1
+
+        # Dimension Mismatch
+        @test_throws DimensionMismatch ones(3) ⊖ ones(4)
+        @test_throws "x has 3 and y has 4." ones(3) ⊖ ones(4)
+
+        @test_throws DimensionMismatch [x x] ⊖ [y2 y2 y2]
+        @test_throws "don't have matching dimensions" [x x] ⊖ [y2 y2 y2]
+
+        @test_throws DimensionMismatch [x x] ⊖ ones(4)
+        @test_throws "x has 3 and y has 4." [x x] ⊖ ones(4)
+    end
+    
+    @testset "otimes" begin
+        m_otimes = methods(⊗);
+        @test any(m_otimes -> m_otimes.sig == Tuple{typeof(⊗), AbstractArray{<:Number}, Union{Number, AbstractArray{<:Number}}}, m_otimes)
+
+        x = hcat(ones(3), 2*ones(3))
+        y1 = [1, 0]
+        y2 = [0, 1]
+        y3 = [1, 0, 1]
+
+        @test x ⊗ y1 == [1, 1, 1]
+        @test x ⊗ y2 == [2, 2, 2]
+        @test_throws DimensionMismatch x ⊗ y3
+        @test_throws DimensionMismatch x ⊗ 1
+        @test_throws MethodError 1 ⊗ 1
+    end
+    
+    @testset "odot" begin
+        m_odot = methods(⊙);
+        @test any(m_odot -> m_odot.sig == Tuple{typeof(⊙), AbstractArray{<:Number}, Number}, m_odot)
+        @test any(m_odot -> m_odot.sig == Tuple{typeof(⊙), Number, AbstractArray{<:Number}}, m_odot)
+        @test any(m_odot -> m_odot.sig == Tuple{typeof(⊙), AbstractArray{<:Number}, AbstractArray{<:Number}}, m_odot)
+    end
+    
+    @testset "oslash" begin
+        m_oslash = methods(⊘);
+        @test any(m_oslash -> m_oslash.sig == Tuple{typeof(⊘), AbstractArray{<:Number}, Number}, m_oslash)
+        @test any(m_oslash -> m_oslash.sig == Tuple{typeof(⊘), Number, AbstractArray{<:Number}}, m_oslash)
+        @test any(m_oslash -> m_oslash.sig == Tuple{typeof(⊘), AbstractArray{<:Number}, AbstractArray{<:Number}}, m_oslash)
+    end
+    
+end
+
+
+
 
 @testset "CYCLOPS" begin
 
-    @testset "operators" begin
-
-        @testset "oplus" begin
-            m_oplus = methods(⊕);
-            @test any(m_oplus -> m_oplus.sig == Tuple{typeof(⊕), AbstractArray{<:Number}, Number}, m_oplus)
-            @test any(m_oplus -> m_oplus.sig == Tuple{typeof(⊕), Number, AbstractArray{<:Number}}, m_oplus)
-            @test any(m_oplus -> m_oplus.sig == Tuple{typeof(⊕), AbstractArray{<:Number}, AbstractArray{<:Number}}, m_oplus)
-
-            x = [1, 2, 3]
-            y1 = 1
-            y2 = [3, 2, 1]
-
-            @test x ⊕ y1 == [2, 3, 4]
-            @test [x x] ⊕ y1 == [2 2; 3 3; 4 4]
-            @test y1 ⊕ x == [2, 3, 4]
-            @test y1 ⊕ [x x] == [2 2; 3 3; 4 4]
-            @test x ⊕ y2 == [4, 4, 4]
-            @test [x x] ⊕ y2 == [4 4; 4 4; 4 4]
-            @test y2 ⊕ [x x] == [4 4; 4 4; 4 4]
-            @test [x x] ⊕ [y2 y2] == [4 4; 4 4; 4 4]
-            @test_throws MethodError 1 ⊕ 1
-            @test_throws DimensionMismatch ones(3) ⊕ ones(4)
-            @test_throws DimensionMismatch [x x] ⊕ [y2 y2 y2]
-            @test_throws DimensionMismatch [x x] ⊕ ones(4)
-        end
         
-        @testset "ominus" begin
-            m_ominus = methods(⊖);
-            @test any(m_ominus -> m_ominus.sig == Tuple{typeof(⊖), AbstractArray{<:Number}, Number}, m_ominus)
-            @test any(m_ominus -> m_ominus.sig == Tuple{typeof(⊖), Number, AbstractArray{<:Number}}, m_ominus)
-            @test any(m_ominus -> m_ominus.sig == Tuple{typeof(⊖), AbstractArray{<:Number}, AbstractArray{<:Number}}, m_ominus)
-
-            x = [1, 2, 3]
-            y1 = 1
-            y2 = [3, 2, 1]
-
-            @test x ⊖ y1 == [0, 1, 2]
-            @test [x x] ⊖ y1 == [0 0; 1 1; 2 2]
-            @test y1 ⊖ x == [0, -1, -2]
-            @test y1 ⊖ [x x] == [0 0; -1 -1; -2 -2]
-            @test x ⊖ y2 == [-2, 0, 2]
-            @test [x x] ⊖ y2 == [-2 -2; 0 0; 2 2]
-            @test y2 ⊖ [x x] == [2 2; 0 0; -2 -2]
-            @test_throws MethodError 1 ⊖ 1
-            @test_throws DimensionMismatch ones(3) ⊖ ones(4)
-            @test_throws DimensionMismatch [x x] ⊖ [y2 y2 y2]
-            @test_throws DimensionMismatch [x x] ⊖ ones(4)
-        end
-        
-        @testset "otimes" begin
-            m_otimes = methods(⊗);
-            @test any(m_otimes -> m_otimes.sig == Tuple{typeof(⊗), AbstractArray{<:Number}, Union{Number, AbstractArray{<:Number}}}, m_otimes)
-
-            x = hcat(ones(3), 2*ones(3))
-            y1 = [1, 0]
-            y2 = [0, 1]
-            y3 = [1, 0, 1]
-
-            @test x ⊗ y1 == [1, 1, 1]
-            @test x ⊗ y2 == [2, 2, 2]
-            @test_throws DimensionMismatch x ⊗ y3
-            @test_throws DimensionMismatch x ⊗ 1
-            @test_throws MethodError 1 ⊗ 1
-        end
-        
-        @testset "odot" begin
-            m_odot = methods(⊙);
-            @test any(m_odot -> m_odot.sig == Tuple{typeof(⊙), AbstractArray{<:Number}, Number}, m_odot)
-            @test any(m_odot -> m_odot.sig == Tuple{typeof(⊙), Number, AbstractArray{<:Number}}, m_odot)
-            @test any(m_odot -> m_odot.sig == Tuple{typeof(⊙), AbstractArray{<:Number}, AbstractArray{<:Number}}, m_odot)
-        end
-        
-        @testset "oslash" begin
-            m_oslash = methods(⊘);
-            @test any(m_oslash -> m_oslash.sig == Tuple{typeof(⊘), AbstractArray{<:Number}, Number}, m_oslash)
-            @test any(m_oslash -> m_oslash.sig == Tuple{typeof(⊘), Number, AbstractArray{<:Number}}, m_oslash)
-            @test any(m_oslash -> m_oslash.sig == Tuple{typeof(⊘), AbstractArray{<:Number}, AbstractArray{<:Number}}, m_oslash)
-        end
-        
-    end
-    
     @testset "cyclops constructor" begin # 41 tests
         
         @test cyclops isa DataType          # 1
