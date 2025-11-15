@@ -738,7 +738,7 @@ using CUDA, Flux, Statistics, ProgressMeter, Plots, Random
 
     See also [`⊕`](@ref), [`⊘`](@ref), [`⊙`](@ref), [`⊗`](@ref), [`⩕`](@ref)
     """
-    function ⊖(x::Union{Number, AbstractArray{<:Number}}, y::Union{Number, AbstractArray{<:Number}})
+    function ⊖(x::AbstractArray{<:Number}, y::AbstractArray{<:Number})
         if (size(x, 2) == 1) || (size(y, 2) == 1)
             size(x, 1) == size(y, 1) || throw(DimensionMismatch("x and y don't have the same number of rows.\nx has $(size(x, 1)) and y has $(size(y, 1))."))
         else

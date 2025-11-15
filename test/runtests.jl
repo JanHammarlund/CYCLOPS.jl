@@ -49,6 +49,43 @@ using Random
 
 @testset "CYCLOPS" begin
 
+    @testset "operators" begin
+
+        @testset "oplus" begin
+            m_oplus = methods(⊕);
+            @test any(m_oplus -> m_oplus.sig == Tuple{typeof(⊕), AbstractArray{<:Number}, Number}, m_oplus)
+            @test any(m_oplus -> m_oplus.sig == Tuple{typeof(⊕), Number, AbstractArray{<:Number}}, m_oplus)
+            @test any(m_oplus -> m_oplus.sig == Tuple{typeof(⊕), AbstractArray{<:Number}, AbstractArray{<:Number}}, m_oplus)
+        end
+
+        @testset "ominus" begin
+            m_ominus = methods(⊖);
+            @test any(m_ominus -> m_ominus.sig == Tuple{typeof(⊖), AbstractArray{<:Number}, Number}, m_ominus)
+            @test any(m_ominus -> m_ominus.sig == Tuple{typeof(⊖), Number, AbstractArray{<:Number}}, m_ominus)
+            @test any(m_ominus -> m_ominus.sig == Tuple{typeof(⊖), AbstractArray{<:Number}, AbstractArray{<:Number}}, m_ominus)
+        end
+
+        @testset "otimes" begin
+            m_otimes = methods(⊗);
+            @test any(m_otimes -> m_otimes.sig == Tuple{typeof(⊗), AbstractArray{<:Number}, Union{Number, AbstractArray{<:Number}}}, m_otimes)
+        end
+
+        @testset "odot" begin
+            m_odot = methods(⊙);
+            @test any(m_odot -> m_odot.sig == Tuple{typeof(⊙), AbstractArray{<:Number}, Number}, m_odot)
+            @test any(m_odot -> m_odot.sig == Tuple{typeof(⊙), Number, AbstractArray{<:Number}}, m_odot)
+            @test any(m_odot -> m_odot.sig == Tuple{typeof(⊙), AbstractArray{<:Number}, AbstractArray{<:Number}}, m_odot)
+        end
+
+        @testset "oslash" begin
+            m_oslash = methods(⊘);
+            @test any(m_oslash -> m_oslash.sig == Tuple{typeof(⊘), AbstractArray{<:Number}, Number}, m_oslash)
+            @test any(m_oslash -> m_oslash.sig == Tuple{typeof(⊘), Number, AbstractArray{<:Number}}, m_oslash)
+            @test any(m_oslash -> m_oslash.sig == Tuple{typeof(⊘), AbstractArray{<:Number}, AbstractArray{<:Number}}, m_oslash)
+        end
+
+    end
+
     @test cyclops isa DataType          # 1
     @test length(methods(cyclops)) == 5 # 2
 
