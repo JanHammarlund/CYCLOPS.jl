@@ -3,7 +3,7 @@ using Test
 using Random
 
 # CYCLOPS
-#   cyclops constructor, 24 tests
+#   cyclops constructor, 38 tests
 #       ✓ invalid arguments, 18 tests
 #           ✓ invalid c, c < 2, 4 tests
 #               ✓ CheckCyclopsInput, 2 tests
@@ -124,7 +124,7 @@ using Random
 
     @testset "cyclops function" begin
 
-        @testset "multi-hot function" begin
+        @testset "multi-hot node" begin
 
             @testset "invalid arguments" begin
     
@@ -143,6 +143,7 @@ using Random
     
                 # Model parameters and multi-hot encoding don't have fitting dimensions
                 @testset "m mismatch input" begin
+                    Random.seed!(1234); test_cyclops = cyclops(5, 3, 2);
                     @test_throws CyclopsMultiHotParameterDimensionMismatch CheckMultiHotTransformation(ones(Float32, 5), Int32.([1, 0]), test_cyclops.scale)
                     @test_throws "Multi-hot encoding = 2 ≠ 3 = Multi-hot Parameters" CheckMultiHotTransformation(ones(Float32, 5), Int32.([1, 0]), test_cyclops.scale)
                     @test_throws CyclopsMultiHotParameterDimensionMismatch mhe(ones(Float32, 5), Int32.([1, 0]), test_cyclops)
@@ -153,6 +154,38 @@ using Random
                     @test_throws "Multi-hot encoding = 2 ≠ 3 = Multi-hot Parameters" test_cyclops(ones(Float32, 5), Int32.([1, 0]))
                 end
     
+            end
+
+            @testset "valid arguments" begin
+                n = 5; m = 3; c = 2
+                Random.seed!(1234); test_cyclops = cyclops(n, m, c);
+                h = Int32.([1, 0, 1])
+                x = ones(Float32, n)
+                
+                @test CheckMultiHotTransformation(x, h, test_cyclops.scale) isa Nothing
+                
+                mhe_out = mhe(x, h, test_cyclops)
+                @test mhe_out isa Array{Float32}
+                @test size(mhe_out) == (n,)
+                
+                manual_mhe_out = x .* (1 .+ test_cyclops.scale[:, 1] .+ test_cyclops.scale[:, 3]) .+ test_cyclops.mhoffset[:, 1] .+ test_cyclops.mhoffset[:, 3] .+ reshape(test_cyclops.offset, length(x))
+                @test isapprox(mhe_out, manual_mhe_out, atol=1E-6)
+
+                mhd_out = mhd(mhe_out, h, test_cyclops)
+                @test mhd_out isa Array{Float32}
+                @test size(mhd_out) == (n,)
+                @test isapprox(x, mhd_out, atol=1E-6)
+            end
+            
+        end
+
+        @testset "hypersphere node" begin
+            @testset "invalid arguments" begin
+                
+            end
+
+            @testset "valid arguments" begin
+                
             end
             
         end
