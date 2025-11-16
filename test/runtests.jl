@@ -89,6 +89,7 @@ using Flux
         @testset "data type" begin
             # cyclops is a data type
             @test cyclops isa DataType
+            @test Set(fieldnames(cyclops)) ⊆ Set([:scale, :mhoffset, :offset, :densein, :denseout])
 
             # with 3 explicitly defined constructor function methods
             # 1 method defined by the data type
@@ -105,6 +106,26 @@ using Flux
             
             @test length(found_cyclops_methods) == 5        # julia sees 5 methods
             @test cyclops_methods ⊆ found_cyclops_methods   # our expected methods match what julia sees
+
+            @test cyclops(5, 2, 3) isa cyclops
+            for ii in [:scale, :mhoffset]
+                @test getfield(cyclops(5, 2, 3), ii) isa Array{Float32}
+                @test getfield(cyclops(5, 2, 3), ii) |> size == (5, 2)
+            end
+
+            @test getfield(cyclops(5, 2, 3), :offset) isa Array{Float32}
+            @test getfield(cyclops(5, 2, 3), :offset) |> size == (5,)
+
+            for ii in [:densein, :denseout]
+                @test getfield(cyclops(5, 2, 3), ii) |> x -> getfield(x, :weight) isa Array{Float32}
+                @test getfield(cyclops(5, 2, 3), ii) |> x -> getfield(x, :bias) isa Vector{Float32}
+            end
+
+            @test getfield(cyclops(5, 2, 3), :densein) |> x -> getfield(x, :weight) |> size == (3, 5)
+            @test getfield(cyclops(5, 2, 3), :densein) |> x -> getfield(x, :bias) |> size == (3,)
+            
+            @test getfield(cyclops(5, 2, 3), :denseout) |> x -> getfield(x, :weight) |> size == (5, 3)
+            @test getfield(cyclops(5, 2, 3), :denseout) |> x -> getfield(x, :bias) |> size == (5,)
         end
 
     end
