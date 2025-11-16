@@ -89,6 +89,7 @@ using Flux
         @testset "data type" begin
             # cyclops is a data type
             @test cyclops isa DataType
+            # with fieldnames: scale, mhoffset, offset, densein, and denseout
             @test Set(fieldnames(cyclops)) ⊆ Set([:scale, :mhoffset, :offset, :densein, :denseout])
 
             # with 3 explicitly defined constructor function methods
@@ -107,27 +108,55 @@ using Flux
             @test length(found_cyclops_methods) == 5        # julia sees 5 methods
             @test cyclops_methods ⊆ found_cyclops_methods   # our expected methods match what julia sees
 
+            # the constructor creates a cyclops data type
             @test cyclops(5, 2, 3) isa cyclops
-            for ii in [:scale, :mhoffset]
+            for ii in [:scale, :mhoffset] # scale and mhoffset have the same dimensions
                 @test getfield(cyclops(5, 2, 3), ii) isa Array{Float32}
                 @test getfield(cyclops(5, 2, 3), ii) |> size == (5, 2)
             end
 
-            @test getfield(cyclops(5, 2, 3), :offset) isa Array{Float32}
+            # offset is a n = 5 by 1 Vector{Float32}
+            @test getfield(cyclops(5, 2, 3), :offset) isa Vector{Float32}
             @test getfield(cyclops(5, 2, 3), :offset) |> size == (5,)
 
+            # densein and denseout both have weight and bias field names
             for ii in [:densein, :denseout]
                 @test getfield(cyclops(5, 2, 3), ii) |> x -> getfield(x, :weight) isa Array{Float32}
                 @test getfield(cyclops(5, 2, 3), ii) |> x -> getfield(x, :bias) isa Vector{Float32}
             end
 
+            # densein weight has dimensions c = 3 by n = 5
             @test getfield(cyclops(5, 2, 3), :densein) |> x -> getfield(x, :weight) |> size == (3, 5)
+            # and densein bias is a c = 3 by 1 Vector{Float32}
             @test getfield(cyclops(5, 2, 3), :densein) |> x -> getfield(x, :bias) |> size == (3,)
             
+            # denseout weight has dimensions n = 5 by c = 3
             @test getfield(cyclops(5, 2, 3), :denseout) |> x -> getfield(x, :weight) |> size == (5, 3)
+            # and denseout bias is a n = 5 by 1 Vector{Float32}
             @test getfield(cyclops(5, 2, 3), :denseout) |> x -> getfield(x, :bias) |> size == (5,)
         end
 
+        @testset "errors" begin
+            # when c < 2 a CyclopsHypersphereDimensionError is thrown
+            @test_throws CyclopsHypersphereDimensionError cyclops(5, 0, 1)
+            # when n ≤ c a CyclopsInputHypersphereDimensionError is thrown
+            @test_throws CyclopsInputHypersphereDimensionError cyclops(2, 0, 2)
+            # when m < 0 a CyclopsMultiHotDimensionError is thrown
+            @test_throws CyclopsMultiHotDimensionError cyclops(5, -1, 2)
+        end
+
+    end
+
+    @testset "function" begin
+        
+        # A cyclops model has 3 methods
+        expected_cyclops_model_methods = Set([
+            Tuple{cyclops, Vector{Float32}, Vector{Int32}}, # Vector of Float32 and Vector of Int32
+            Tuple{cyclops, Vector{Float32}, Missing},       # Vector of Float32 and Missing
+            Tuple{cyclops, Vector{Float32}}                 # Vector of Float32
+        ])
+
+        @test Set(m.sig for m in methods(cyclops(5, 3, 2))) ⊆ expected_cyclops_model_methods
     end
 
 end
