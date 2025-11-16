@@ -166,6 +166,32 @@ using Flux
             Tuple{cyclops, Vector{Float32}}                 # Vector of Float32
         ])
 
+        @testset "check cyclops model input" begin
+
+            @testset "function errors" begin
+                
+                @testset "input and model parameter dimension mismatch" begin
+                    @test Exception >: CyclopsInputMultiHotDimensionMismatch isa DataType
+                    @test Set(m.sig for m in methods(CyclopsInputMultiHotDimensionMismatch)) ⊆ Set([
+                        Tuple{Type{CyclopsInputMultiHotDimensionMismatch}, Vector{Float32}, Array{Float32}},
+                        Tuple{Type{CyclopsInputMultiHotDimensionMismatch}, Any, Any}
+                    ])
+
+                    @test_throws CyclopsInputMultiHotDimensionMismatch throw(CyclopsInputMultiHotDimensionMismatch(ones(Float32, 5), zeros(Float32, 6, 2)))
+                    @test_throws "Input = 5 ≠ 6 = Multi-hot Parameters" throw(CyclopsInputMultiHotDimensionMismatch(ones(Float32, 5), zeros(Float32, 6, 2)))
+                    
+                    # # Alternate methods that will pass because the number can be converted to integers
+                    # @test CyclopsHypersphereDimensionError(1f0) isa CyclopsHypersphereDimensionError
+                    # @test CyclopsHypersphereDimensionError(1.0) isa CyclopsHypersphereDimensionError
+
+                    # # Expected erros
+                    # @test_throws InexactError CyclopsHypersphereDimensionError(1.1)
+                    # @test_throws MethodError CyclopsHypersphereDimensionError("1")
+                end
+            end
+
+        end
+
         # The output of a cyclops model is a Vector{Float32}
         @test cyclops(5, 3, 2)(ones(Float32, 5), ones(Int32, 3)) isa Vector{Float32}
         @test cyclops(5, 0, 2)(ones(Float32, 5)) isa Vector{Float32}
