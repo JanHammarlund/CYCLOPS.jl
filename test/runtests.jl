@@ -10,7 +10,7 @@ using Flux
 
         @testset "check cyclops input" begin
 
-            @testset "constructor errors" begin
+            @testset "constructor errors" begin # 23 tests
 
                 @testset "hypershpere dimension error" begin # 7 tests
                     @test Exception >: CyclopsHypersphereDimensionError isa DataType
@@ -56,8 +56,55 @@ using Flux
                     @test_throws InexactError CyclopsMultiHotDimensionError(1.1)
                 end # 7 tests
 
+            end # 23 tests
+
+            @testset "wrapper function" begin
+                
+                # CheckCyclopsInput is a function
+                @test CheckCyclopsInput isa Function
+                # with one method
+                @test methods(CheckCyclopsInput)[1].sig == Tuple{typeof(CheckCyclopsInput), Int, Int, Int}
+                
+                # It returns nothing when c ≥ 2, n > c, and m ≥ 0
+                @test CheckCyclopsInput(3, 0, 2) isa Nothing
+                
+                # When m < 0 the function throws a CyclopsMultiHotDimensionError
+                @test_throws CyclopsMultiHotDimensionError CheckCyclopsInput(5, -1, 2)
+                # and provides the value of m, as well as the non-error domain, m ≥ 0
+                @test_throws "`m` = -1 < 0, but `m` must be ≥ 0." CheckCyclopsInput(5, -1, 2)
+                
+                # When c < 2 the function throws a CyclopsHyperSphereDomainError
+                @test_throws CyclopsHypersphereDimensionError CheckCyclopsInput(5, 0, 1)
+                # and provides the value of c, as well as the non-error domain, c ≥ 2
+                @test_throws "`c` = 1, but `c` must be ≥ 2." CheckCyclopsInput(5, 0, 1)
+                
+                # When n ≤ c the function throws a CyclopsInputHypersphereDimensionError
+                @test_throws CyclopsInputHypersphereDimensionError CheckCyclopsInput(2, 0, 2)
+                # and provides the value of both n and c, as well as the non-error domain, n > c
+                @test_throws "`n` = 2 ≤ `c`, but `n` must be > 2." CheckCyclopsInput(2, 0, 2)
             end
 
+        end
+
+        @testset "data type" begin
+            # cyclops is a data type
+            @test cyclops isa DataType
+
+            # with 3 explicitly defined constructor function methods
+            # 1 method defined by the data type
+            # and one julia internal
+            cyclops_methods = Set([
+                Tuple{Type{cyclops}, Int, Int, Int},  # n, m and c are provided as integers
+                Tuple{Type{cyclops}, Int, Int},       # n and m are provided as integers, c = 2
+                Tuple{Type{cyclops}, Int},            # n is provided as an integer, m = 2, c = 2
+                Tuple{Type{cyclops}, Array{Float32}, Array{Float32}, Array{Float32}, Dense, Dense}, # struct
+                Tuple{Type{cyclops}, Vararg{Any, 5}}  # julia default definition
+            ])
+            
+            found_cyclops_methods = Set(m.sig for m in methods(cyclops));
+            
+            @test length(found_cyclops_methods) == 5        # julia sees 5 methods
+            @test cyclops_methods ⊆ found_cyclops_methods   # our expected methods match what julia sees
         end
 
     end
