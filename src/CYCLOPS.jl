@@ -139,6 +139,57 @@ using CUDA, Flux, Statistics, ProgressMeter, Plots, Random
         throw(ArgumentError("Only integer values are accepted but got: $(typeof(n)), $(typeof(m)), and $(typeof(c))."))
     end
 
+    function _check_cyclops_input(
+        scale::AbstractArray{<:Real,2},
+        mhoffset::AbstractArray{<:Real,2},
+        offset::AbstractVecOrMat{<:Real},
+        densein::Dense,
+        denseout::Dense)
+
+        scale_size = size(scale)
+        mhoffset_size = size(mhoffset)
+        offset_size = size(offset)
+        densein_weight_size = size(densein.weight)
+        denseout_weight_size = size(denseout.weight)
+
+        # Most general test to check for correct dimensions
+        scale_size[1] == mhoffset_size[1] == offset_size[1] == densein_weight_size[2] == denseout_weight_size[1] || begin
+            throw(DimensionMismatch("the row numbers of scale, mhoffset, offset, denseout.weight, and column number of densein.weight should match."))
+        end
+
+        # Make sure multi-hot parameters are the same size
+        scale_size == mhoffset_size || throw(DimensionMismatch("scale and mhoffset do not have the same dimensions: scale=$(scale_size) and mhoffset=$(mhoffset_size)."))
+        
+        # Make sure multi-hot offset parameters have the right number of rows
+        mhoffset_size[1] == offset_size[1] || throw(DimensionMismatch("the number of rows in offset ($(offset_size[1])) doesn't match the number of rows in scale and mhoffset."))
+
+        # Make sure that offset is either a n by 1 or a n by 0 array
+        if scale_size[2] == 0 
+            # If scale is a n by 0 matrix, then offset must be, too
+            offset_size == scale_size || throw(DimensionMismatch("expected offset to have dimension $(scale_size), but offset has dimensions $(offset_size).")) 
+        else
+            # If scale is a n by m ≥ 1, then offset must be a Vector with n rows
+            (scale_size[1],) == offset_size || throw(DimensionMismatch("expected offset to have dimensions $((scale_size[1],)), but off has dimensions $(offset_size)."))
+        end
+
+        # Make sure dense layer has correct compression (Dense n => c)
+        2 ≤ densein_weight_size[1] < densein_weight_size[2] || throw(DomainError("dense layer compression", "densein layer should compress to a dimension ≥ 2, but got $(densein_weight_size[2]) => $(densein_weight_size[1])."))
+        
+        # Make sure dense layer has correct expansion (Dense c => n)
+        2 ≤ denseout_weight_size[2] < denseout_weight_size[1] || throw(DomainError("dense layer expansion", "denseout layer should expand from a dimension ≥ 2, but got $(denseout_weight_size[2]) => $(denseout_weight_size[1])."))
+        
+        # Make sure dense layers have inverse dimensions
+        densein_weight_size == reverse(denseout_weight_size) || throw(DimensionMismatch("dense layers should have inverse dimensions."))
+        
+        # Make sure that n > c
+        scale_size[1] > densein_weight_size[1] || throw(DomainError("scale", "`n` = $(scale_size[1]) is invalid: must satisfy n > c = $(densein_weight_size[1])."))
+
+        # Convert offset to appropriate type
+        offset32 = ndims(offset) == 2 ? Array{Float32}(offset) : Vector{Float32}(offset)
+
+        return offset32
+    end
+
     """
         cyclops(n::Int[, m::Int=0, c::Int=2])
 
@@ -217,7 +268,7 @@ using CUDA, Flux, Statistics, ProgressMeter, Plots, Random
     struct cyclops
         scale::Array{Float32}
         mhoffset::Array{Float32}
-        offset::Union{Vector{Float32}, Array{Float32}}
+        offset::AbstractVecOrMat{Float32}
         densein::Dense
         denseout::Dense
 
@@ -237,45 +288,7 @@ using CUDA, Flux, Statistics, ProgressMeter, Plots, Random
             densein::Dense,
             denseout::Dense)
 
-            scale_size = size(scale)
-            mhoffset_size = size(mhoffset)
-            offset_size = size(offset)
-            offset_size_length = length(offset_size)
-            densein_weight_size = size(densein.weight)
-            denseout_weight_size = size(denseout.weight)
-            densein_bias_size = size(densein.bias)
-            denseout_bias_size = size(denseout.bias)
-
-            # Make sure multi-hot parameters are the same size
-            scale_size == mhoffset_size || throw(DimensionMismatch("scale and mhoffset do not have the same dimensions: scale=$(scale_size) and mhoffset=$(mhoffset_size)."))
-            
-            # Make sure multi-hot parameters have the right number of rows
-            mhoffset_size[1] == offset_size[1] || throw(DimensionMismatch("the number of rows in offset ($(offset_size[1])) doesn't match the number of rows in scale and mhoffset."))
-
-            # Make sure that offset is either a n by 1 or a n by 0 array
-            
-
-            # Make sure dense layers have inverse dimensions
-            densein_weight_size == reverse(denseout_weight_size) || throw(DimensionMismatch("dense layers should have inverse dimensions."))
-            
-            # Make sure dense layers compress/expand to/from ≥ 2 dimensions
-            densein_weight_size[1] ≥ 2 || throw(DomainError(":densein/:denseout", "have smaller dimension $(densein_weight_size[1]), but must be ≥ 2."))
-
-            # Make sure multi-hot parameters 
-
-            # if length(scale_size) == 2 && length(offset_size) == 2
-            #     offset_size[2] == 0 || throw(DimensionMismatch("offset should have 0 columns but has $(offset_size[2])."))
-            # end
-            # scale_size[1] == offset_size[1] || throw(DimensionMismatch("offset should have $(scale_size[1]) rows but has $(offset_size[1]) rows."))
-            # scale_size[1] == densein_weight_size[2] || throw(DimensionMismatch("Dense layer has $(densein_weight_size[2]) columns but should have $(scale_size[1])."))
-            # densein_bias_size[1] == densein_weight_size[1] ≥ 2 || throw(DimensionMismatch("Dense layer has $(densein_weight_size[1]) rows but should have ≥ 2."))
-            # scale_size[1] == denseout_weight_size[1] || throw(DimensionMismatch("Dense layer has $(denseout_weight_size[1]) rows but should have $(scale_size[1])."))
-            # denseout_weight_size[2] ≥ 2 || throw(DimensionMismatch("Dense layer has $(denseout_weight_size[2]) columns but should have ≥ 2."))
-            # densein_weight_size[1] == denseout_weight_size[2] || throw(DimensionMismatch("Dense layers do not have fitting dimensions."))
-            # denseout_bias_size[1] == densein_weight_size[2] == denseout_weight_size[1] || throw(DimensionMismatch("Dense layers do not have fitting dimensions."))
-            # scale_size[1] > densein_weight_size[1] || throw(DomainError("scale", "has $(scale_size[1]) rows but must have > $(densein_weight_size[1])."))
-
-            offset32 = length(offset_size) == 2 ? Array{Float32}(offset) : Vector{Float32}(offset)
+            offset32 = _check_cyclops_input(scale, mhoffset, offset, densein, denseout)
 
             return new(Array{Float32}(scale), Array{Float32}(mhoffset), offset32, densein, denseout)
         end
