@@ -14,6 +14,48 @@ export CyclopsHyperSphereDivideError
 export CheckHSNdomain
 using CUDA, Flux, Statistics, ProgressMeter, Plots, Random
 
+# CyclopsError
+# │
+# ├── CyclopsConstructorError
+# │     │
+# │     ├── CyclopsConstructorDomainError
+# │     │      ├── CyclopsHypersphereDimensionError
+# │     │      ├── CyclopsInputHypersphereDimensionError
+# │     │      └── CyclopsMultiHotDimensionError
+# │     │
+# │     └── CyclopsConstructorShapeError
+# │            ├── CyclopsScaleShapeError
+# │            ├── CyclopsMhoffsetShapeError
+# │            ├── CyclopsOffsetShapeError
+# │            ├── CyclopsDenseInShapeError
+# │            ├── CyclopsDenseOutShapeError
+# │            ├── CyclopsDenseCompressionError
+# │            ├── CyclopsDenseExpansionError
+# │            └── CyclopsInverseDenseShapeError
+# │
+# └── CyclopsFunctionError
+#       │
+#       ├── CyclopsMultiHotError
+#       │      ├── CyclopsInputMultiHotDimensionMismatch
+#       │      └── CyclopsMultiHotParameterDimensionMismatch
+#       │
+#       └── CyclopsHSNError
+#              ├── CyclopsHyperSphereDomainError
+#              └── CyclopsHyperSphereDivideError
+
+    # Cyclops Error
+    abstract type   CyclopsError                    <:  Exception               end
+
+    # Constructor Errors
+    abstract type   CyclopsConstructorError         <:  CyclopsError            end
+    abstract type   CyclopsConstructorDomainError   <:  CyclopsConstructorError end
+    abstract type   CyclopsConstructorShapeError    <:  CyclopsConstructorError end
+
+    # Function Errors
+    abstract type   CyclopsFunctionError            <:  CyclopsError            end
+    abstract type   CyclopsMultiHotError            <:  CyclopsFunctionError    end
+    abstract type   CyclopsHSNError                 <:  CyclopsFunctionError    end
+
     """
         CyclopsHypersphereDimensionError(c::Int)
 
@@ -30,7 +72,7 @@ using CUDA, Flux, Statistics, ProgressMeter, Plots, Random
     [`CheckCyclopsInput`](@ref), [`CyclopsInputHypersphereDimensionError`](@ref),
     [`CyclopsMultiHotDimensionError`](@ref), [`cyclops`](@ref)
     """
-    struct CyclopsHypersphereDimensionError <: Exception 
+    struct CyclopsHypersphereDimensionError <: CyclopsConstructorDomainError 
         c::Int
     end
 
@@ -58,7 +100,7 @@ using CUDA, Flux, Statistics, ProgressMeter, Plots, Random
     [`CheckCyclopsInput`](@ref), [`CyclopsHypersphereDimensionError`](@ref),
     [`CyclopsMultiHotDimensionError`](@ref), [`cyclops`](@ref)
     """
-    struct CyclopsInputHypersphereDimensionError <: Exception 
+    struct CyclopsInputHypersphereDimensionError <: CyclopsConstructorDomainError 
         n::Int
         c::Int
     end
@@ -88,7 +130,7 @@ using CUDA, Flux, Statistics, ProgressMeter, Plots, Random
     [`CheckCyclopsInput`](@ref), [`CyclopsHypersphereDimensionError`](@ref),
     [`CyclopsInputHypersphereDimensionError`](@ref), [`cyclops`](@ref)
     """
-    struct CyclopsMultiHotDimensionError <: Exception 
+    struct CyclopsMultiHotDimensionError <: CyclopsConstructorDomainError 
         m::Int
     end
 
