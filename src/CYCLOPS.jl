@@ -19,36 +19,41 @@ export CyclopsHyperSphereDivideError
 export CheckHSNdomain
 using CUDA, Flux, Statistics, ProgressMeter, Plots, Random
 
-# CyclopsError
-# │
-# ├── CyclopsConstructorError
-# │     │
-# │     ├── CyclopsConstructorDomainError
-# │     │      ├── CyclopsConstructorHypersphereDomainError
-# │     │      ├── CyclopsConstructorInputAndHypersphereDomainError
-# │     │      └── CyclopsConstructorMultiHotDomainError
-# │     │
-# │     └── CyclopsConstructorShapeError
-# │            ├── CyclopsMultiHotParameterShapeError
-# │            │      ├── CyclopsMultiHotMatrixShapeError
-# │            │      └── CyclopsMultiHotOffsetShapeError
-# │            └── CyclopsDenseShapeError
-# │                   ├── CyclopsDenseDomainError
-# │                   │      ├── CyclopsDenseCompressionError
-# │                   │      └── CyclopsDenseExpansionError
-# │                   └── CyclopsDenseDimensionMismatch
-# │
-# └── CyclopsFunctionError
-#       │
-#       ├── CyclopsMultiHotError
-#       │      ├── CyclopsInputMultiHotDimensionMismatch
-#       │      └── CyclopsMultiHotParameterDimensionMismatch
-#       │
-#       └── CyclopsHSNError
-#              ├── CyclopsHyperSphereDomainError
-#              └── CyclopsHyperSphereDivideError
-
     # Cyclops Error
+    """
+    ```text
+    CyclopsError
+    │
+    ├── CyclopsConstructorError
+    │     │
+    │     ├── CyclopsConstructorDomainError
+    │     │      ├── CyclopsConstructorHypersphereDomainError
+    │     │      ├── CyclopsConstructorInputAndHypersphereDomainError
+    │     │      └── CyclopsConstructorMultiHotDomainError
+    │     │
+    │     └── CyclopsConstructorShapeError
+    │            ├── CyclopsMultiHotParameterShapeError
+    │            │      ├── CyclopsMultiHotMatrixShapeError
+    │            │      └── CyclopsMultiHotOffsetShapeError
+    │            │
+    │            └── CyclopsDenseShapeError
+    │                   ├── CyclopsDenseDimensionError
+    │                   │      ├── CyclopsDenseCompressionDimensionError
+    │                   │      └── CyclopsDenseExpansionDimensionError
+    │                   │
+    │                   └── CyclopsInverseDimensionMismatch
+    │
+    └── CyclopsFunctionError
+        │
+        ├── CyclopsMultiHotError
+        │      ├── CyclopsInputMultiHotDimensionMismatch
+        │      └── CyclopsMultiHotParameterDimensionMismatch
+        │
+        └── CyclopsHSNError
+                ├── CyclopsHyperSphereDomainError
+                └── CyclopsHyperSphereDivideError
+    ```
+    """
     abstract type   CyclopsError                        <:  Exception                       end
 
     # Constructor Errors
@@ -57,7 +62,7 @@ using CUDA, Flux, Statistics, ProgressMeter, Plots, Random
     abstract type   CyclopsConstructorShapeError        <:  CyclopsConstructorError         end
     abstract type   CyclopsMultiHotParameterShapeError  <:  CyclopsConstructorShapeError    end
     abstract type   CyclopsDenseShapeError              <:  CyclopsConstructorShapeError    end
-    abstract type   CyclopsDenseDomainError             <:  CyclopsDenseShapeError          end
+    abstract type   CyclopsDenseDimensionError          <:  CyclopsDenseShapeError          end
 
     # Function Errors
     abstract type   CyclopsFunctionError                <:  CyclopsError                    end
@@ -242,6 +247,88 @@ using CUDA, Flux, Statistics, ProgressMeter, Plots, Random
         )
     end
 
+    """
+        CyclopsDenseCompressionDimensionError(d::Tuple{Varag{Int}})
+
+    An error when the shape of the dense layer is not a compression to ≥ 2 dimensions.
+    
+    # Example
+    ```julia-repl
+    ```
+
+    # See also
+    [`cyclops`](@ref), [`CyclopsDenseExpansionDimensionError`](@ref), [`_check_cyclops_input`](@ref), [`CheckCyclopsInput`](@ref)
+    """
+    struct CyclopsDenseCompressionDimensionError <: CyclopsDenseDimensionError 
+        d::Tuple{Int, Int}
+        s::Int
+    end
+
+    Base.showerror(io::IO, e::CyclopsDenseCompressionDimensionError) = begin
+        print(
+            io,
+            "CyclopsDenseCompressionDimensionError: ",
+            "dense compression must satisfy n => c ≥ 2, where n > c, ",
+            "but got $(e.d[2]==e.s ? "" : "$(e.s) ≠ ")$(e.d[2]) => $(e.d[1])$(e.d[1]<2 ? " < 2" : "")."
+        )
+    end
+
+    """
+        CyclopsDenseExpansionDimensionError(d::Tuple{Varag{Int}})
+
+    An error when the shape of the dense layer is not an expansion from ≥ 2 dimensions.
+    
+    # Example
+    ```julia-repl
+    ```
+
+    # See also
+    [`cyclops`](@ref), [`CyclopsDenseCompressionDimensionError`](@ref), [`_check_cyclops_input`](@ref), [`CheckCyclopsInput`](@ref)
+    """
+    struct CyclopsDenseExpansionDimensionError <: CyclopsDenseDimensionError 
+        d::Tuple{Int, Int}
+        s::Int
+    end
+
+    Base.showerror(io::IO, e::CyclopsDenseExpansionDimensionError) = begin
+        print(
+            io,
+            "CyclopsDenseExpansionDimensionError: ",
+            "dense expansion must satisfy 2 ≤ c => n, where n > c, ",
+            "but got $(e.d[2]<2 ? "2 > " : "")$(e.d[2]) => $(e.d[1])$(e.d[1]==e.s ? "" : " ≠ $(e.s)")."
+        )
+    end
+
+    """
+        CyclopsInverseDimensionMismatch(comp::Tuple{Int, Int}, expan::Tuple{Int, Int})
+
+    An error when densein and denseout do not have inverse dimensions.
+
+    # Example
+    ```julia-repl
+    julia>
+    [...]
+    ```
+
+    # See also
+    [`cyclops`](@ref), [`_check_cyclops_input`](@ref)
+    """
+    struct CyclopsInverseDimensionMismatch <: CyclopsDenseShapeError 
+        din::Tuple{Int, Int}
+        dout::Tuple{Int, Int}
+    end
+
+    Base.showerror(io::IO, e::CyclopsInverseDimensionMismatch) = begin
+        print(
+            io,
+            "CyclopsInverseDimensionMismatch: ",
+            "dense in and dense out do not have inverse dimensions.\n",
+            "Expected $(e.din[2]) => $(e.din[1]) compression ",
+            "to be mirrored by $(e.din[1]) => $(e.din[2]) expansion, ",
+            "but got $(e.dout[2]) => $(e.dout[1])."
+        )
+    end
+
     function _check_cyclops_input(
         scale::AbstractArray{<:Real,2},
         mhoffset::AbstractArray{<:Real,2},
@@ -268,17 +355,14 @@ using CUDA, Flux, Statistics, ProgressMeter, Plots, Random
         end
 
         # Make sure dense layer has correct compression (Dense n => c)
-        2 ≤ densein_weight_size[1] < densein_weight_size[2] || throw(DomainError("dense layer compression", "densein layer should compress to a dimension ≥ 2, but got $(densein_weight_size[2]) => $(densein_weight_size[1])."))
+        2 ≤ densein_weight_size[1] < densein_weight_size[2] == scale_size[1] || throw(CyclopsDenseCompressionDimensionError(densein_weight_size, scale_size[1]))
         
         # Make sure dense layer has correct expansion (Dense c => n)
-        2 ≤ denseout_weight_size[2] < denseout_weight_size[1] || throw(DomainError("dense layer expansion", "denseout layer should expand from a dimension ≥ 2, but got $(denseout_weight_size[2]) => $(denseout_weight_size[1])."))
+        2 ≤ denseout_weight_size[2] < denseout_weight_size[1] == scale_size[1] || throw(CyclopsDenseExpansionDimensionError(denseout_weight_size, scale_size[1]))
         
         # Make sure dense layers have inverse dimensions
-        densein_weight_size == reverse(denseout_weight_size) || throw(DimensionMismatch("dense layers should have inverse dimensions."))
+        densein_weight_size == reverse(denseout_weight_size) || throw(CyclopsInverseDimensionMismatch(densein_weight_size, denseout_weight_size))
         
-        # Make sure that n > c
-        scale_size[1] > densein_weight_size[1] || throw(DomainError("scale", "`n` = $(scale_size[1]) is invalid: must satisfy n > c = $(densein_weight_size[1])."))
-
         # Convert offset to appropriate type
         offset32 = ndims(offset) == 2 ? Array{Float32}(offset) : Vector{Float32}(offset)
 
@@ -621,7 +705,7 @@ using CUDA, Flux, Statistics, ProgressMeter, Plots, Random
 
     An error when `x` and `m` do not have the same number of rows.
     """
-    struct CyclopsInputMultiHotDimensionMismatch <: Exception 
+    struct CyclopsInputMultiHotDimensionMismatch <: CyclopsMultiHotError 
         x::Vector{Float32}
         m::Array{Float32}
     end
@@ -636,7 +720,7 @@ using CUDA, Flux, Statistics, ProgressMeter, Plots, Random
 
     An error when the multi-hot encoding does not have as many rows as the multi-hot parameters has columns.
     """
-    struct CyclopsMultiHotParameterDimensionMismatch <: Exception 
+    struct CyclopsMultiHotParameterDimensionMismatch <: CyclopsMultiHotError 
         h::Vector{Int}
         m::Array{Float32}
     end
