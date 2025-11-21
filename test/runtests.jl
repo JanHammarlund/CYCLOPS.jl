@@ -3,6 +3,151 @@ using Test
 using Random
 using Flux
 
+@testset "Cyclops Error Hierarchy" begin
+    cyclops_error_hierarchy = Dict(
+        CyclopsError => [
+            CyclopsConstructorError,
+            CyclopsFunctionError
+        ],
+        CyclopsConstructorError => [
+            CyclopsConstructorDomainError,
+            CyclopsConstructorShapeError
+        ],
+        CyclopsConstructorDomainError => [
+            CyclopsConstructorHypersphereDomainError,
+            CyclopsConstructorInputAndHypersphereDomainError,
+            CyclopsConstructorMultiHotDomainError
+        ],
+        CyclopsConstructorShapeError => [
+            CyclopsMultiHotParameterShapeError,
+            CyclopsDenseShapeError
+        ],
+        CyclopsMultiHotParameterShapeError => [
+            CyclopsMultiHotMatrixShapeError,
+            CyclopsMultiHotOffsetShapeError
+        ],
+        CyclopsDenseShapeError => [
+            CyclopsDenseDimensionError,
+            CyclopsInverseDimensionMismatch
+        ],
+        CyclopsDenseDimensionError => [
+            CyclopsDenseCompressionDimensionError,
+            CyclopsDenseExpansionDimensionError
+        ],
+        CyclopsFunctionError => [
+            CyclopsMethodError,
+            CyclopsMultiHotError,
+            CyclopsHSNError
+        ],
+        CyclopsMultiHotError => [
+            CyclopsInputDimensionMismatch,
+            CyclopsMultiHotDimensionMismatch
+        ],
+        CyclopsHSNError => [
+            CyclopsHyperSphereDomainError,
+            CyclopsHyperSphereDivideError
+        ]
+    )
+
+    # Each parent’s current subtypes must be drawn from the expected set.
+    for (parent, children) in cyclops_error_hierarchy
+        @test Set(subtypes(parent)) ⊆ Set(children)
+    end
+
+    concrete_errors = [
+        CyclopsConstructorHypersphereDomainError,
+        CyclopsConstructorInputAndHypersphereDomainError,
+        CyclopsConstructorMultiHotDomainError,
+        CyclopsMultiHotMatrixShapeError,
+        CyclopsMultiHotOffsetShapeError,
+        CyclopsDenseCompressionDimensionError,
+        CyclopsDenseExpansionDimensionError,
+        CyclopsInverseDimensionMismatch,
+        CyclopsMethodError,
+        CyclopsInputDimensionMismatch,
+        CyclopsMultiHotDimensionMismatch,
+        CyclopsHyperSphereDomainError,
+        CyclopsHyperSphereDivideError
+    ]
+
+    for T in concrete_errors
+        @test !isabstracttype(T)
+    end
+
+end
+
+@testset "Expected Errors" begin
+    
+    @testset "Constructor Errors" begin
+        
+        @testset "Constructor Domain Errors" begin
+            
+            @testset "Hypersphere Domain Error" begin
+                @test CyclopsConstructorHypersphereDomainError isa DataType
+                @test_throws CyclopsConstructorHypersphereDomainError cyclops(5, 0, 1)
+                @test_throws "`c` = 1, but `c` must be ≥ 2." cyclops(5, 0, 1)
+            end
+
+            @testset "Input and Hypersphere Domain Error" begin
+                @test CyclopsConstructorInputAndHypersphereDomainError isa DataType
+                @test_throws CyclopsConstructorInputAndHypersphereDomainError cyclops(5, 0, 6)
+                @test_throws "`n` = 5 ≤ `c`, but `n` must be > 6." cyclops(5, 0, 6)
+            end
+
+            @testset "Multi-hot Domain Error" begin
+                @test CyclopsConstructorMultiHotDomainError isa DataType
+                @test_throws CyclopsConstructorMultiHotDomainError cyclops(5, -1, 3)
+                @test_throws "`m` = -1 < 0, but `m` must be ≥ 0." cyclops(5, -1, 3)
+            end
+
+        end
+
+        @testset "Constructor Shape Errors" begin
+            
+            @testset "Multi-hot Parameter Shape Error" begin
+                
+                @testset "Multi-hot Matrix Shape Error" begin
+                    @test CyclopsMultiHotMatrixShapeError isa DataType
+                    @test_throws CyclopsMultiHotMatrixShapeError cyclops(rand(Float32, 5, 3), rand(Float32, 6, 4), rand(Float32, 5), Flux.Dense(5 => 2), Flux.Dense(2 => 5))
+                    @test_throws "scale has dimensions (5, 3) ≠ (6, 4) dimensions of mhoffset." cyclops(rand(Float32, 5, 3), rand(Float32, 6, 4), rand(Float32, 5), Flux.Dense(5 => 2), Flux.Dense(2 => 5))
+                end
+
+                @testset "Multi-hot Offset Shape Error" begin
+                    @test CyclopsMultiHotOffsetShapeError isa DataType
+                    @test_throws CyclopsMultiHotOffsetShapeError cyclops(rand(Float32, 5, 3), rand(Float32, 5, 3), rand(Float32, 5, 1), Flux.Dense(5 => 2), Flux.Dense(2 => 5))
+                    @test_throws CyclopsMultiHotOffsetShapeError cyclops(rand(Float32, 5, 3), rand(Float32, 5, 3), rand(Float32, 6), Flux.Dense(5 => 2), Flux.Dense(2 => 5))
+                end
+
+            end
+            
+            @testset "Dense Shape Error" begin
+
+                @testset "Dense Dimension Error" begin
+
+                    @testset "Dense Compression Error" begin
+                        @test_throws CyclopsDenseCompressionDimensionError cyclops(rand(Float32, 5, 0), rand(Float32, 5, 0), rand(Float32, 5, 0), Flux.Dense(5 => 1), Flux.Dense(2 => 5))
+                        @test_throws CyclopsDenseCompressionDimensionError cyclops(rand(Float32, 5, 0), rand(Float32, 5, 0), rand(Float32, 5, 0), Flux.Dense(1 => 5), Flux.Dense(2 => 5))
+                    end
+
+                    @testset "Dense Expansion Error" begin
+                        @test_throws CyclopsDenseExpansionDimensionError cyclops(rand(Float32, 5, 0), rand(Float32, 5, 0), rand(Float32, 5, 0), Flux.Dense(5 => 2), Flux.Dense(1 => 5))
+                        @test_throws CyclopsDenseExpansionDimensionError cyclops(rand(Float32, 5, 0), rand(Float32, 5, 0), rand(Float32, 5, 0), Flux.Dense(5 => 2), Flux.Dense(5 => 1))    
+                    end
+                    
+                end
+
+                @testset "Inverse Dimension Error" begin
+                    @test_throws CyclopsInverseDimensionMismatch cyclops(rand(Float32, 5, 0), rand(Float32, 5, 0), rand(Float32, 5, 0), Flux.Dense(5 => 2), Flux.Dense(3 => 5))
+                    
+                end
+                
+            end
+        end
+
+    end
+
+end
+
 # CyclopsHypersphereDimensionError
 @testset "hypershpere dimension error" begin # 7 tests
     @test Exception >: CyclopsHypersphereDimensionError isa DataType

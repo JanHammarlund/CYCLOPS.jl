@@ -3,19 +3,29 @@ export cyclops, mhe, hsn, mhd, nparams
 export ⊙, ⊗, ⊕, ⊖, ⊘, ⩕
 export CyclopsError
 export CyclopsConstructorError
+export CyclopsFunctionError
 export CyclopsConstructorDomainError
 export CyclopsConstructorShapeError
+export CyclopsMethodError
+export CyclopsMultiHotError
+export CyclopsHSNError
 export CyclopsConstructorHypersphereDomainError
 export CyclopsConstructorInputAndHypersphereDomainError
 export CyclopsConstructorMultiHotDomainError
-export CyclopsMultiHotMatrixShapeError
-export CheckCyclopsInput
-export _check_cyclops_input
-export CyclopsInputMultiHotDimensionMismatch
-export CyclopsMultiHotParameterDimensionMismatch
-export CheckMultiHotTransformation
+export CyclopsMultiHotParameterShapeError
+export CyclopsDenseShapeError
+export CyclopsInputDimensionMismatch
+export CyclopsMultiHotDimensionMismatch
 export CyclopsHyperSphereDomainError
 export CyclopsHyperSphereDivideError
+export CyclopsMultiHotMatrixShapeError
+export CyclopsMultiHotOffsetShapeError
+export CyclopsDenseDimensionError
+export CyclopsInverseDimensionMismatch
+export CyclopsDenseCompressionDimensionError
+export CyclopsDenseExpansionDimensionError
+export CheckCyclopsInput
+export _check_cyclops_input
 export CheckHSNdomain
 using CUDA, Flux, Statistics, ProgressMeter, Plots, Random
 
@@ -44,14 +54,16 @@ using CUDA, Flux, Statistics, ProgressMeter, Plots, Random
     │                   └── CyclopsInverseDimensionMismatch
     │
     └── CyclopsFunctionError
-        │
-        ├── CyclopsMultiHotError
-        │      ├── CyclopsInputMultiHotDimensionMismatch
-        │      └── CyclopsMultiHotParameterDimensionMismatch
-        │
-        └── CyclopsHSNError
-                ├── CyclopsHyperSphereDomainError
-                └── CyclopsHyperSphereDivideError
+           │
+           ├── CyclopsMultiHotError
+           │      ├── CyclopsInputDimensionMismatch
+           │      └── CyclopsMultiHotDimensionMismatch
+           │
+           ├── CyclopsHSNError
+           │      ├── CyclopsHyperSphereDomainError
+           │      └── CyclopsHyperSphereDivideError
+           │
+           └── CyclopsMethodError
     ```
     """
     abstract type   CyclopsError                        <:  Exception                       end
@@ -59,15 +71,32 @@ using CUDA, Flux, Statistics, ProgressMeter, Plots, Random
     # Constructor Errors
     abstract type   CyclopsConstructorError             <:  CyclopsError                    end
     abstract type   CyclopsConstructorDomainError       <:  CyclopsConstructorError         end
+    #                  ├── CyclopsConstructorHypersphereDomainError
+    #                  ├── CyclopsConstructorInputAndHypersphereDomainError
+    #                  └── CyclopsConstructorMultiHotDomainError
+
     abstract type   CyclopsConstructorShapeError        <:  CyclopsConstructorError         end
     abstract type   CyclopsMultiHotParameterShapeError  <:  CyclopsConstructorShapeError    end
+    #                  ├── CyclopsMultiHotMatrixShapeError
+    #                  └── CyclopsMultiHotOffsetShapeError
+
     abstract type   CyclopsDenseShapeError              <:  CyclopsConstructorShapeError    end
+    #                  └── CyclopsInverseDimensionMismatch
     abstract type   CyclopsDenseDimensionError          <:  CyclopsDenseShapeError          end
+    #                  ├── CyclopsDenseCompressionDimensionError
+    #                  └── CyclopsDenseExpansionDimensionError
 
     # Function Errors
     abstract type   CyclopsFunctionError                <:  CyclopsError                    end
+    #                  └── CyclopsMethodError
     abstract type   CyclopsMultiHotError                <:  CyclopsFunctionError            end
+    #                  ├── CyclopsInputDimensionMismatch
+    #                  └── CyclopsMultiHotDimensionMismatch
+
     abstract type   CyclopsHSNError                     <:  CyclopsFunctionError            end
+    #                  ├── CyclopsHyperSphereDomainError
+    #                  └── CyclopsHyperSphereDivideError
+
 
     """
         CyclopsConstructorHypersphereDomainError(c::Int)
@@ -579,13 +608,37 @@ using CUDA, Flux, Statistics, ProgressMeter, Plots, Random
     - Only one method for non-covariate model
     """
     function (m::cyclops)(input_data::Vector{Float32}, multihot::Vector{Int32}; silence::Bool=false)::Array{Float32}
-        length(m.scale) == 0 && throw(ErrorException("Multi-hot encoding provided to model without multi-hot parameters."))
+        length(m.scale) == 0 && throw(CyclopsMethodError())
         multihot_encoding = mhe(input_data, multihot, m)
         dense_encoding = m.densein(multihot_encoding)
         circular_encoding = hsn(dense_encoding)
         dense_decoding = m.denseout(circular_encoding)
         output = mhd(dense_decoding, multihot, m)
         return output
+    end
+
+    """
+        CyclopsMethodError()
+
+    An error when a model without multi-hot parameters is provided a Vector{Int32} along with the Vector{Float32} input.
+
+    # Example
+    ```julia-repl
+    julia>
+    [...]
+    ```
+
+    # See also
+    [`cyclops`](@ref), [`CyclopsError`](@ref)
+    """
+    struct CyclopsMethodError <: CyclopsFunctionError end 
+
+    Base.showerror(io::IO, e::CyclopsMethodError) = begin 
+        print(
+            io,
+            "CyclopsMethodError: ",
+            "Multi-hot encoding provided to model without multi-hot parameters."
+        )
     end
 
     function (m::cyclops)(input_data::Vector{Float32}, multihot::Missing=missing; silence::Bool=false)::Array{Float32}
@@ -615,7 +668,13 @@ using CUDA, Flux, Statistics, ProgressMeter, Plots, Random
         x::Array{Float32}
     end
 
-    Base.showerror(io::IO, e::CyclopsHyperSphereDomainError) = print(io, "CyclopsHyperSphereDomainError: `NaN` at ", findall(isnan, e.x))
+    Base.showerror(io::IO, e::CyclopsHyperSphereDomainError) = begin
+        print(
+            io, 
+            "CyclopsHyperSphereDomainError: `NaN` at ", 
+            findall(isnan, e.x)
+        )
+    end
 
     """
         CyclopsHyperSphereDivideError()
@@ -633,7 +692,13 @@ using CUDA, Flux, Statistics, ProgressMeter, Plots, Random
     [`CheckHSNdomain`](@ref), [`CyclopsHyperSphereDomainError`](@ref), [`cyclops`](@ref)
     """
     struct CyclopsHyperSphereDivideError <: CyclopsHSNError end
-    Base.showerror(io::IO, e::CyclopsHyperSphereDivideError) = print(io, "CyclopsHyperSphereDivideError: All values passed to the hypershpere node are `0`.")
+    
+    Base.showerror(io::IO, e::CyclopsHyperSphereDivideError) = begin
+        print(
+            io, 
+            "CyclopsHyperSphereDivideError: All values passed to the hypershpere node are `0`."
+        )
+    end 
 
     """
         CheckHSNdomain(x::Vector{Float32})
@@ -701,33 +766,33 @@ using CUDA, Flux, Statistics, ProgressMeter, Plots, Random
     end
 
     """
-        CyclopsInputMultiHotDimensionMismatch(x::Vector{Float32}, m::Array{Float32})
+        CyclopsInputDimensionMismatch(x::Vector{Float32}, m::Array{Float32})
 
     An error when `x` and `m` do not have the same number of rows.
     """
-    struct CyclopsInputMultiHotDimensionMismatch <: CyclopsMultiHotError 
+    struct CyclopsInputDimensionMismatch <: CyclopsMultiHotError 
         x::Vector{Float32}
         m::Array{Float32}
     end
     
-    Base.showerror(io::IO, e::CyclopsInputMultiHotDimensionMismatch) = 
+    Base.showerror(io::IO, e::CyclopsInputDimensionMismatch) = 
         print(io, 
-            "CyclopsInputMultiHotDimensionMismatch: Input `x` and multi-hot parameters do not have the same number of rows.\n", 
+            "CyclopsInputDimensionMismatch: Input `x` and multi-hot parameters do not have the same number of rows.\n", 
             "Input = $(length(e.x)) ≠ $(size(e.m, 1)) = Multi-hot Parameters\n")
 
     """
-        CyclopsMultiHotParameterDimensionMismatch(h::Vector{Int}, m::Array{Float32})
+        CyclopsMultiHotDimensionMismatch(h::Vector{Int}, m::Array{Float32})
 
     An error when the multi-hot encoding does not have as many rows as the multi-hot parameters has columns.
     """
-    struct CyclopsMultiHotParameterDimensionMismatch <: CyclopsMultiHotError 
+    struct CyclopsMultiHotDimensionMismatch <: CyclopsMultiHotError 
         h::Vector{Int}
         m::Array{Float32}
     end
     
-    Base.showerror(io::IO, e::CyclopsMultiHotParameterDimensionMismatch) =
+    Base.showerror(io::IO, e::CyclopsMultiHotDimensionMismatch) =
         print(io,
-            "CyclopsMultiHotParameterDimensionMismatch: Multi-hot encoding `h` and multi-hot parameters do not have fitting dimensions.\n",
+            "CyclopsMultiHotDimensionMismatch: Multi-hot encoding `h` and multi-hot parameters do not have fitting dimensions.\n",
             "Multi-hot encoding must have as many rows as the multi-hot parameters have columns.\n",
             "Multi-hot encoding = $(length(e.h)) ≠ $(size(e.m, 2)) = Multi-hot Parameters\n")
 
@@ -738,8 +803,8 @@ using CUDA, Flux, Statistics, ProgressMeter, Plots, Random
     same number of rows, and if the multi-hot encoding `h` has as many rows as the multi-hot parameters `m` have columns.
     """
     function CheckMultiHotTransformation(x::Vector{Float32}, h::Vector{Int32}, m::Array{Float32})
-        (length(x) != size(m, 1)) && throw(CyclopsInputMultiHotDimensionMismatch(x, m))
-        (length(h) != size(m, 2)) && throw(CyclopsMultiHotParameterDimensionMismatch(h, m))
+        (length(x) != size(m, 1)) && throw(CyclopsInputDimensionMismatch(x, m))
+        (length(h) != size(m, 2)) && throw(CyclopsMultiHotDimensionMismatch(h, m))
 
         return nothing
     end
