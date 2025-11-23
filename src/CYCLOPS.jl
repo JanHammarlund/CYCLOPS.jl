@@ -7,25 +7,24 @@ export CyclopsFunctionError
 export CyclopsConstructorDomainError
 export CyclopsConstructorShapeError
 export CyclopsMethodError
-export CyclopsMultiHotError
-export CyclopsHSNError
+export CyclopsInputDimensionMismatch
+export CyclopsBottleneckError
 export CyclopsConstructorHypersphereDomainError
 export CyclopsConstructorInputAndHypersphereDomainError
 export CyclopsConstructorMultiHotDomainError
 export CyclopsMultiHotParameterShapeError
 export CyclopsDenseShapeError
-export CyclopsInputDimensionMismatch
+export CyclopsDimensionMismatch
 export CyclopsMultiHotDimensionMismatch
-export CyclopsHyperSphereDomainError
-export CyclopsHyperSphereDivideError
+export CyclopsHypersphereDomainError
+export CyclopsHypersphereDivideError
 export CyclopsMultiHotMatrixShapeError
 export CyclopsMultiHotOffsetShapeError
 export CyclopsDenseDimensionError
 export CyclopsInverseDimensionMismatch
 export CyclopsDenseCompressionDimensionError
-export CyclopsDenseExpansionDimensionError
+export CheckCyclopsConstructorInput
 export CheckCyclopsInput
-export _check_cyclops_input
 export CheckHSNdomain
 using CUDA, Flux, Statistics, ProgressMeter, Plots, Random
 
@@ -48,20 +47,19 @@ using CUDA, Flux, Statistics, ProgressMeter, Plots, Random
     │            │
     │            └── CyclopsDenseShapeError
     │                   ├── CyclopsDenseDimensionError
-    │                   │      ├── CyclopsDenseCompressionDimensionError
-    │                   │      └── CyclopsDenseExpansionDimensionError
+    │                   │      └── CyclopsDenseCompressionDimensionError
     │                   │
     │                   └── CyclopsInverseDimensionMismatch
     │
     └── CyclopsFunctionError
            │
-           ├── CyclopsMultiHotError
-           │      ├── CyclopsInputDimensionMismatch
+           ├── CyclopsInputDimensionMismatch
+           │      ├── CyclopsDimensionMismatch
            │      └── CyclopsMultiHotDimensionMismatch
            │
-           ├── CyclopsHSNError
-           │      ├── CyclopsHyperSphereDomainError
-           │      └── CyclopsHyperSphereDivideError
+           ├── CyclopsBottleneckError
+           │      ├── CyclopsHypersphereDomainError
+           │      └── CyclopsHypersphereDivideError
            │
            └── CyclopsMethodError
     ```
@@ -83,19 +81,18 @@ using CUDA, Flux, Statistics, ProgressMeter, Plots, Random
     abstract type   CyclopsDenseShapeError              <:  CyclopsConstructorShapeError    end
     #                  └── CyclopsInverseDimensionMismatch
     abstract type   CyclopsDenseDimensionError          <:  CyclopsDenseShapeError          end
-    #                  ├── CyclopsDenseCompressionDimensionError
-    #                  └── CyclopsDenseExpansionDimensionError
+    #                  └── CyclopsDenseCompressionDimensionError
 
     # Function Errors
     abstract type   CyclopsFunctionError                <:  CyclopsError                    end
     #                  └── CyclopsMethodError
-    abstract type   CyclopsMultiHotError                <:  CyclopsFunctionError            end
-    #                  ├── CyclopsInputDimensionMismatch
+    abstract type   CyclopsInputDimensionMismatch                <:  CyclopsFunctionError            end
+    #                  ├── CyclopsDimensionMismatch
     #                  └── CyclopsMultiHotDimensionMismatch
 
-    abstract type   CyclopsHSNError                     <:  CyclopsFunctionError            end
-    #                  ├── CyclopsHyperSphereDomainError
-    #                  └── CyclopsHyperSphereDivideError
+    abstract type   CyclopsBottleneckError                     <:  CyclopsFunctionError            end
+    #                  ├── CyclopsHypersphereDomainError
+    #                  └── CyclopsHypersphereDivideError
 
 
     """
@@ -114,7 +111,7 @@ using CUDA, Flux, Statistics, ProgressMeter, Plots, Random
         CyclopsConstructorHypersphereDomainError <: CyclopsConstructorDomainError <: CyclopsConstructorError <: CyclopsError <: Exception <: Any
 
     # See also
-    [`CheckCyclopsInput`](@ref), [`CyclopsConstructorInputAndHypersphereDomainError`](@ref),
+    [`CheckCyclopsConstructorInput`](@ref), [`CyclopsConstructorInputAndHypersphereDomainError`](@ref),
     [`CyclopsConstructorMultiHotDomainError`](@ref), [`cyclops`](@ref)
     """
     struct CyclopsConstructorHypersphereDomainError <: CyclopsConstructorDomainError 
@@ -141,7 +138,7 @@ using CUDA, Flux, Statistics, ProgressMeter, Plots, Random
         CyclopsConstructorInputAndHypersphereDomainError <: CyclopsConstructorDomainError <: CyclopsConstructorError <: CyclopsError <: Exception <: Any
 
     # See also
-    [`CheckCyclopsInput`](@ref), [`CyclopsConstructorHypersphereDomainError`](@ref),
+    [`CheckCyclopsConstructorInput`](@ref), [`CyclopsConstructorHypersphereDomainError`](@ref),
     [`CyclopsConstructorMultiHotDomainError`](@ref), [`cyclops`](@ref)
     """
     struct CyclopsConstructorInputAndHypersphereDomainError <: CyclopsConstructorDomainError 
@@ -169,7 +166,7 @@ using CUDA, Flux, Statistics, ProgressMeter, Plots, Random
         CyclopsConstructorMultiHotDomainError <: CyclopsConstructorDomainError <: CyclopsConstructorError <: CyclopsError <: Exception <: Any
 
     # See also
-    [`CheckCyclopsInput`](@ref), [`CyclopsConstructorHypersphereDomainError`](@ref),
+    [`CheckCyclopsConstructorInput`](@ref), [`CyclopsConstructorHypersphereDomainError`](@ref),
     [`CyclopsConstructorInputAndHypersphereDomainError`](@ref), [`cyclops`](@ref)
     """
     struct CyclopsConstructorMultiHotDomainError <: CyclopsConstructorDomainError 
@@ -181,7 +178,7 @@ using CUDA, Flux, Statistics, ProgressMeter, Plots, Random
     end
 
     """
-        CheckCyclopsInput(n::Int, m::Int, c::Int)
+        CheckCyclopsConstructorInput(n::Int, m::Int, c::Int)
     
     Checks domains of input arguments to `cyclops`, and returns `nothing` if all checks are passed.
 
@@ -196,20 +193,20 @@ using CUDA, Flux, Statistics, ProgressMeter, Plots, Random
 
     # Examples
     ```julia-repl
-    julia> n = 5; m = 0; c = 1; CYCLOPS.CheckCyclopsInput(n, m, c)
+    julia> n = 5; m = 0; c = 1; CYCLOPS.CheckCyclopsConstructorInput(n, m, c)
     ERROR: CyclopsConstructorHypersphereDomainError: `c` = 1, but `c` must be ≥ 2.
     [...]
 
-    julia> n = 5; m = 0; c = 5; CYCLOPS.CheckCyclopsInput(n, m, c)
+    julia> n = 5; m = 0; c = 5; CYCLOPS.CheckCyclopsConstructorInput(n, m, c)
     ERROR: CyclopsConstructorInputAndHypersphereDomainError: `n` = 5 ≤ `c`, but `n` must be > 5 or `c` must be < 5.
     [...]
 
-    julia> n = 5; m = -1; c = 3; CYCLOPS.CheckCyclopsInput(n, m, c)
+    julia> n = 5; m = -1; c = 3; CYCLOPS.CheckCyclopsConstructorInput(n, m, c)
     ERROR: CyclopsConstructorMultiHotDomainError: `m` = -1 < 0, but `m` must be ≥ 0
     [...]
     ```
     """
-    function CheckCyclopsInput(n::Int, m::Int, c::Int)
+    function CheckCyclopsConstructorInput(n::Int, m::Int, c::Int)
         c ≥ 2 || throw(CyclopsConstructorHypersphereDomainError(c))
         n > c || throw(CyclopsConstructorInputAndHypersphereDomainError(n, c))
         m ≥ 0 || throw(CyclopsConstructorMultiHotDomainError(m))
@@ -232,7 +229,7 @@ using CUDA, Flux, Statistics, ProgressMeter, Plots, Random
         CyclopsMultiHotMatrixShapeError <: CyclopsMultiHotParameterShapeError <: CyclopsConstructorShapeError <: CyclopsConstructorError <: CyclopsError <: Exception <: Any
 
     # See also
-    [`cyclops`](@ref), [`_check_cyclops_input`](@ref)
+    [`cyclops`](@ref), [`CheckCyclopsConstructorInput`](@ref)
     """
     struct CyclopsMultiHotMatrixShapeError <: CyclopsMultiHotParameterShapeError 
         s::Tuple{Vararg{Int}}
@@ -261,7 +258,7 @@ using CUDA, Flux, Statistics, ProgressMeter, Plots, Random
         CyclopsMultiHotOffsetShapeError <: CyclopsMultiHotParameterShapeError <: CyclopsConstructorShapeError <: CyclopsConstructorError <: CyclopsError <: Exception <: Any
 
     # See also
-    [`cyclops`](@ref), [`_check_cyclops_input`](@ref)
+    [`cyclops`](@ref), [`CheckCyclopsConstructorInput`](@ref)
     """
     struct CyclopsMultiHotOffsetShapeError <: CyclopsMultiHotParameterShapeError 
         s::Tuple{Vararg{Int}}
@@ -286,7 +283,7 @@ using CUDA, Flux, Statistics, ProgressMeter, Plots, Random
     ```
 
     # See also
-    [`cyclops`](@ref), [`CyclopsDenseExpansionDimensionError`](@ref), [`_check_cyclops_input`](@ref), [`CheckCyclopsInput`](@ref)
+    [`cyclops`](@ref), [`CheckCyclopsConstructorInput`](@ref), [`CheckCyclopsConstructorInput`](@ref)
     """
     struct CyclopsDenseCompressionDimensionError <: CyclopsDenseDimensionError 
         d::Tuple{Int, Int}
@@ -303,32 +300,6 @@ using CUDA, Flux, Statistics, ProgressMeter, Plots, Random
     end
 
     """
-        CyclopsDenseExpansionDimensionError(d::Tuple{Varag{Int}})
-
-    An error when the shape of the dense layer is not an expansion from ≥ 2 dimensions.
-    
-    # Example
-    ```julia-repl
-    ```
-
-    # See also
-    [`cyclops`](@ref), [`CyclopsDenseCompressionDimensionError`](@ref), [`_check_cyclops_input`](@ref), [`CheckCyclopsInput`](@ref)
-    """
-    struct CyclopsDenseExpansionDimensionError <: CyclopsDenseDimensionError 
-        d::Tuple{Int, Int}
-        s::Int
-    end
-
-    Base.showerror(io::IO, e::CyclopsDenseExpansionDimensionError) = begin
-        print(
-            io,
-            "CyclopsDenseExpansionDimensionError: ",
-            "dense expansion must satisfy 2 ≤ c => n, where n > c, ",
-            "but got $(e.d[2]<2 ? "2 > " : "")$(e.d[2]) => $(e.d[1])$(e.d[1]==e.s ? "" : " ≠ $(e.s)")."
-        )
-    end
-
-    """
         CyclopsInverseDimensionMismatch(comp::Tuple{Int, Int}, expan::Tuple{Int, Int})
 
     An error when densein and denseout do not have inverse dimensions.
@@ -340,7 +311,7 @@ using CUDA, Flux, Statistics, ProgressMeter, Plots, Random
     ```
 
     # See also
-    [`cyclops`](@ref), [`_check_cyclops_input`](@ref)
+    [`cyclops`](@ref), [`CheckCyclopsConstructorInput`](@ref)
     """
     struct CyclopsInverseDimensionMismatch <: CyclopsDenseShapeError 
         din::Tuple{Int, Int}
@@ -358,7 +329,7 @@ using CUDA, Flux, Statistics, ProgressMeter, Plots, Random
         )
     end
 
-    function _check_cyclops_input(
+    function CheckCyclopsConstructorInput(
         scale::AbstractArray{<:Real,2},
         mhoffset::AbstractArray{<:Real,2},
         offset::AbstractVecOrMat{<:Real},
@@ -382,15 +353,12 @@ using CUDA, Flux, Statistics, ProgressMeter, Plots, Random
             # If scale is a n by m ≥ 1, then offset must be a Vector with n rows
             (scale_size[1],) == offset_size || throw(CyclopsMultiHotOffsetShapeError((scale_size[1],), offset_size))
         end
-
-        # Make sure dense layer has correct compression (Dense n => c)
-        2 ≤ densein_weight_size[1] < densein_weight_size[2] == scale_size[1] || throw(CyclopsDenseCompressionDimensionError(densein_weight_size, scale_size[1]))
-        
-        # Make sure dense layer has correct expansion (Dense c => n)
-        2 ≤ denseout_weight_size[2] < denseout_weight_size[1] == scale_size[1] || throw(CyclopsDenseExpansionDimensionError(denseout_weight_size, scale_size[1]))
         
         # Make sure dense layers have inverse dimensions
         densein_weight_size == reverse(denseout_weight_size) || throw(CyclopsInverseDimensionMismatch(densein_weight_size, denseout_weight_size))
+        
+        # Make sure n > c ≥ 2
+        2 ≤ densein_weight_size[1] < densein_weight_size[2] == scale_size[1] || throw(CyclopsDenseCompressionDimensionError(densein_weight_size, scale_size[1]))
         
         # Convert offset to appropriate type
         offset32 = ndims(offset) == 2 ? Array{Float32}(offset) : Vector{Float32}(offset)
@@ -470,7 +438,7 @@ using CUDA, Flux, Statistics, ProgressMeter, Plots, Random
     - `CyclopsConstructorMultiHotDomainError` when `m < 0`
 
     # See also
-    [`CheckCyclopsInput`](@ref), [`CyclopsConstructorHypersphereDomainError`](@ref),
+    [`CheckCyclopsConstructorInput`](@ref), [`CyclopsConstructorHypersphereDomainError`](@ref),
     [`CyclopsConstructorInputAndHypersphereDomainError`](@ref), [`CyclopsConstructorMultiHotDomainError`](@ref)
     """
     struct cyclops
@@ -481,11 +449,10 @@ using CUDA, Flux, Statistics, ProgressMeter, Plots, Random
         denseout::Dense
 
         function cyclops(n::Int, m::Int=0, c::Int=2)        
-            CheckCyclopsInput(n, m, c)
+            CheckCyclopsConstructorInput(n, m, c)
             mhparameters = zeros(Float32, n, m)
             offset = m == 0 ? zeros(Float32, n, m) : zeros(Float32, n)
 
-            Random.seed!(1234);
             return new(deepcopy(mhparameters), deepcopy(mhparameters), offset, Dense(n => c), Dense(c => n))
         end
 
@@ -496,7 +463,7 @@ using CUDA, Flux, Statistics, ProgressMeter, Plots, Random
             densein::Dense,
             denseout::Dense)
 
-            offset32 = _check_cyclops_input(scale, mhoffset, offset, densein, denseout)
+            offset32 = CheckCyclopsConstructorInput(scale, mhoffset, offset, densein, denseout)
 
             return new(Array{Float32}(scale), Array{Float32}(mhoffset), offset32, densein, denseout)
         end
@@ -607,7 +574,7 @@ using CUDA, Flux, Statistics, ProgressMeter, Plots, Random
     - Both methods for covariate model
     - Only one method for non-covariate model
     """
-    function (m::cyclops)(input_data::Vector{Float32}, multihot::Vector{Int32}; silence::Bool=false)::Array{Float32}
+    function (m::cyclops)(input_data::Vector{Float32}, multihot::Vector{Int32})::Array{Float32}
         length(m.scale) == 0 && throw(CyclopsMethodError())
         multihot_encoding = mhe(input_data, multihot, m)
         dense_encoding = m.densein(multihot_encoding)
@@ -643,6 +610,7 @@ using CUDA, Flux, Statistics, ProgressMeter, Plots, Random
 
     function (m::cyclops)(input_data::Vector{Float32}, multihot::Missing=missing; silence::Bool=false)::Array{Float32}
         silence || length(m.scale) == 0 || @warn "CYCLOPS model with multi-hot parameters used without multi-hot encoding."
+        CheckCyclopsInput(input_data, m.scale)
         dense_encoding = m.densein(input_data)
         circular_encoding = hsn(dense_encoding)
         output = m.denseout(circular_encoding)
@@ -650,53 +618,53 @@ using CUDA, Flux, Statistics, ProgressMeter, Plots, Random
     end
 
     """
-        CyclopsHyperSphereDomainError()
+        CyclopsHypersphereDomainError()
 
     An error when any of the inputs to `hsn` are `NaN`.
 
     # Examples
     ```julia-repl
     julia> hsn(Float32.([1, NaN]))
-    ERROR: CyclopsHyperSphereDomainError: `NaN` at [2].
+    ERROR: CyclopsHypersphereDomainError: `NaN` at [2].
     [...]
     ```
 
     # See also
-    [`CheckHSNdomain`](@ref), [`CyclopsHyperSphereDivideError`](@ref), [`cyclops`](@ref)
+    [`CheckHSNdomain`](@ref), [`CyclopsHypersphereDivideError`](@ref), [`cyclops`](@ref)
     """
-    struct CyclopsHyperSphereDomainError <: CyclopsHSNError
+    struct CyclopsHypersphereDomainError <: CyclopsBottleneckError
         x::Array{Float32}
     end
 
-    Base.showerror(io::IO, e::CyclopsHyperSphereDomainError) = begin
+    Base.showerror(io::IO, e::CyclopsHypersphereDomainError) = begin
         print(
             io, 
-            "CyclopsHyperSphereDomainError: `NaN` at ", 
+            "CyclopsHypersphereDomainError: `NaN` at ", 
             findall(isnan, e.x)
         )
     end
 
     """
-        CyclopsHyperSphereDivideError()
+        CyclopsHypersphereDivideError()
 
     An error when all of the inputs to the hypersphere node (`hsn`) are `0`.
 
     # Examples
     ```julia-repl
     julia> hsn(Float32.([0, 0]))
-    ERROR: CyclopsHyperSphereDivideError: All values passed to the hypershpere node are `0`.
+    ERROR: CyclopsHypersphereDivideError: All values passed to the hypershpere node are `0`.
     [...]
     ```
 
     # See also
-    [`CheckHSNdomain`](@ref), [`CyclopsHyperSphereDomainError`](@ref), [`cyclops`](@ref)
+    [`CheckHSNdomain`](@ref), [`CyclopsHypersphereDomainError`](@ref), [`cyclops`](@ref)
     """
-    struct CyclopsHyperSphereDivideError <: CyclopsHSNError end
+    struct CyclopsHypersphereDivideError <: CyclopsBottleneckError end
     
-    Base.showerror(io::IO, e::CyclopsHyperSphereDivideError) = begin
+    Base.showerror(io::IO, e::CyclopsHypersphereDivideError) = begin
         print(
             io, 
-            "CyclopsHyperSphereDivideError: All values passed to the hypershpere node are `0`."
+            "CyclopsHypersphereDivideError: All values passed to the hypershpere node are `0`."
         )
     end 
 
@@ -706,11 +674,11 @@ using CUDA, Flux, Statistics, ProgressMeter, Plots, Random
     Checks domains of values in `x` and returns `nothing` when none of the values are `NaN` or at least one value is not `0`.
 
     # Errors
-    - `CyclopsHyperSphereDomainError`: when any value in `x` is `NaN`
-    - `CyclopsHyperSphereDivideError`: when all values in `x` are `0`
+    - `CyclopsHypersphereDomainError`: when any value in `x` is `NaN`
+    - `CyclopsHypersphereDivideError`: when all values in `x` are `0`
 
     # See also
-    [`CyclopsHyperSphereDomainError`](@ref), [`CyclopsHyperSphereDivideError`](@ref),
+    [`CyclopsHypersphereDomainError`](@ref), [`CyclopsHypersphereDivideError`](@ref),
     [`hsn`](@ref), [`cyclops`](@ref)
 
     # Examples
@@ -721,8 +689,8 @@ using CUDA, Flux, Statistics, ProgressMeter, Plots, Random
     ```
     """
     function CheckHSNdomain(x::Vector{Float32})
-        any(isnan.(x)) && throw(CyclopsHyperSphereDomainError(x))
-        all(x .== 0) && throw(CyclopsHyperSphereDivideError())
+        any(isnan.(x)) && throw(CyclopsHypersphereDomainError(x))
+        all(x .== 0) && throw(CyclopsHypersphereDivideError())
 
         return nothing
     end
@@ -738,8 +706,8 @@ using CUDA, Flux, Statistics, ProgressMeter, Plots, Random
     Output has the same dimensions as input.
     
     # Errors
-    - Throws a `CyclopsHyperSphereDomainError` if any element of `x` is `NaN`.
-    - Throws a `CyclopsHyperSphereDivideError` if all elements of `x` are `0`.
+    - Throws a `CyclopsHypersphereDomainError` if any element of `x` is `NaN`.
+    - Throws a `CyclopsHypersphereDivideError` if all elements of `x` are `0`.
 
     # Examples
     ```julia-repl
@@ -757,7 +725,7 @@ using CUDA, Flux, Statistics, ProgressMeter, Plots, Random
 
     # See also 
     [`cyclops`](@ref), [`mhe`](@ref), [`mhd`](@ref), [`nparams`](@ref), [`Flux.Dense`](@ref),
-    [`CyclopsHyperSphereDomainError`](@ref), [`CyclopsHyperSphereDivideError`](@ref), 
+    [`CyclopsHypersphereDomainError`](@ref), [`CyclopsHypersphereDivideError`](@ref), 
     [`CheckHSNdomain`](@ref)
     """
     function hsn(x::Vector{Float32})::Array{Float32}
@@ -766,18 +734,18 @@ using CUDA, Flux, Statistics, ProgressMeter, Plots, Random
     end
 
     """
-        CyclopsInputDimensionMismatch(x::Vector{Float32}, m::Array{Float32})
+        CyclopsDimensionMismatch(x::Vector{Float32}, m::Array{Float32})
 
     An error when `x` and `m` do not have the same number of rows.
     """
-    struct CyclopsInputDimensionMismatch <: CyclopsMultiHotError 
+    struct CyclopsDimensionMismatch <: CyclopsInputDimensionMismatch 
         x::Vector{Float32}
         m::Array{Float32}
     end
     
-    Base.showerror(io::IO, e::CyclopsInputDimensionMismatch) = 
+    Base.showerror(io::IO, e::CyclopsDimensionMismatch) = 
         print(io, 
-            "CyclopsInputDimensionMismatch: Input `x` and multi-hot parameters do not have the same number of rows.\n", 
+            "CyclopsDimensionMismatch: Input `x` and multi-hot parameters do not have the same number of rows.\n", 
             "Input = $(length(e.x)) ≠ $(size(e.m, 1)) = Multi-hot Parameters\n")
 
     """
@@ -785,7 +753,7 @@ using CUDA, Flux, Statistics, ProgressMeter, Plots, Random
 
     An error when the multi-hot encoding does not have as many rows as the multi-hot parameters has columns.
     """
-    struct CyclopsMultiHotDimensionMismatch <: CyclopsMultiHotError 
+    struct CyclopsMultiHotDimensionMismatch <: CyclopsInputDimensionMismatch 
         h::Vector{Int}
         m::Array{Float32}
     end
@@ -797,14 +765,20 @@ using CUDA, Flux, Statistics, ProgressMeter, Plots, Random
             "Multi-hot encoding = $(length(e.h)) ≠ $(size(e.m, 2)) = Multi-hot Parameters\n")
 
     """
-        CheckMultiHotTransformation(x::Vector{Float32}, h::Vector{Int}, m::Vector{Float32})
+        CheckCyclopsInput(x::Vector{Float32}, h::Vector{Int}, m::Vector{Float32})
 
     Checks inputs to multi-hot transformation and returns `nothing` if input data `x` and multi-hot parameters `m` have the
     same number of rows, and if the multi-hot encoding `h` has as many rows as the multi-hot parameters `m` have columns.
     """
-    function CheckMultiHotTransformation(x::Vector{Float32}, h::Vector{Int32}, m::Array{Float32})
-        (length(x) != size(m, 1)) && throw(CyclopsInputDimensionMismatch(x, m))
+    function CheckCyclopsInput(x::Vector{Float32}, h::Vector{Int32}, m::Array{Float32})
+        (length(x) != size(m, 1)) && throw(CyclopsDimensionMismatch(x, m))
         (length(h) != size(m, 2)) && throw(CyclopsMultiHotDimensionMismatch(h, m))
+
+        return nothing
+    end
+
+    function CheckCyclopsInput(x::Vector{Float32}, m::Array{Float32})
+        (length(x) != size(m, 1)) && throw(CyclopsDimensionMismatch(x, m))
 
         return nothing
     end
@@ -867,7 +841,7 @@ using CUDA, Flux, Statistics, ProgressMeter, Plots, Random
     ```
     """
     function mhe(input_data::Vector{Float32}, multihot::Vector{Int32}, m::cyclops)::Array{Float32}
-        CheckMultiHotTransformation(input_data, multihot, m.scale)
+        CheckCyclopsInput(input_data, multihot, m.scale)
         
         return input_data ⊙ (1 ⊕ (m.scale ⊗ multihot)) ⊕ (m.mhoffset ⊗ multihot) ⊕ reshape(m.offset, length(input_data))
     end
@@ -928,8 +902,8 @@ using CUDA, Flux, Statistics, ProgressMeter, Plots, Random
     true
     ```
     """
-    function mhd(dense_decoding::Vector{Float32}, multihot::Vector{Int32}, m::cyclops)
-        CheckMultiHotTransformation(dense_decoding, multihot, m.scale)
+    function mhd(dense_decoding::Vector{Float32}, multihot::Vector{Int32}, m::cyclops)::Array{Float32}
+        CheckCyclopsInput(dense_decoding, multihot, m.scale)
 
         return (dense_decoding ⊖ (m.mhoffset ⊗ multihot) ⊖ reshape(m.offset, length(dense_decoding))) ⊘ (1 ⊕ (m.scale ⊗ multihot))
     end
@@ -1232,6 +1206,6 @@ using CUDA, Flux, Statistics, ProgressMeter, Plots, Random
     ```
     """
     function nparams(m::cyclops)
-        return sum(length, Flux.params(m))
+        return 2*prod(size(m.scale)) + length(m.offset) + 2*prod(size(m.densein.weight)) + sum(size(m.densein.weight))
     end
 end
