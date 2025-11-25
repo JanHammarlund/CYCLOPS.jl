@@ -13,40 +13,18 @@ using InteractiveUtils: subtypes
             CyclopsFunctionError
         ],
         CyclopsConstructorError => [
-            CyclopsConstructorDomainError,
-            CyclopsConstructorShapeError
-        ],
-        CyclopsConstructorDomainError => [
-            CyclopsConstructorHypersphereDomainError,
-            CyclopsConstructorInputAndHypersphereDomainError,
-            CyclopsConstructorMultihotDomainError
-        ],
-        CyclopsConstructorShapeError => [
-            CyclopsMultiHotParameterShapeError,
+            CyclopsHypersphereDomainError,
+            CyclopsInputAndHypersphereDomainError,
+            CyclopsMultihotDomainError,
+            CyclopsMultihotMatrixShapeError,
+            CyclopsMultihotOffsetShapeError,
+            CyclopsDenseInverseShapeError,
             CyclopsDenseShapeError
         ],
-        CyclopsMultiHotParameterShapeError => [
-            CyclopsMultiHotMatrixShapeError,
-            CyclopsMultiHotOffsetShapeError
-        ],
-        CyclopsDenseShapeError => [
-            CyclopsDenseDimensionError,
-            CyclopsInverseDimensionMismatch
-        ],
-        CyclopsDenseDimensionError => [
-            CyclopsDenseCompressionDimensionError
-        ],
         CyclopsFunctionError => [
-            CyclopsMethodError,
+            CyclopsMultihotDimensionMismatch,
             CyclopsInputDimensionMismatch,
-            CyclopsBottleneckError
-        ],
-        CyclopsInputDimensionMismatch => [
-            CyclopsDimensionMismatch,
-            CyclopsMultiHotDimensionMismatch
-        ],
-        CyclopsBottleneckError => [
-            CyclopsHypersphereDomainError,
+            CyclopsHypersphereNaNError,
             CyclopsHypersphereDivideError
         ]
     )
@@ -54,28 +32,27 @@ using InteractiveUtils: subtypes
     # Each parent’s current subtypes must be drawn from the expected set.
     for (parent, children) in cyclops_error_hierarchy
         @test Set(subtypes(parent)) ⊆ Set(children)
-    end # 10 abstract types with concrete types as children, 10 tests
+    end # 3 abstract types with concrete types as children, 3 tests
 
     concrete_errors = [
-        CyclopsConstructorHypersphereDomainError,
-        CyclopsConstructorInputAndHypersphereDomainError,
-        CyclopsConstructorMultihotDomainError,
-        CyclopsMultiHotMatrixShapeError,
-        CyclopsMultiHotOffsetShapeError,
-        CyclopsDenseCompressionDimensionError,
-        CyclopsInverseDimensionMismatch,
-        CyclopsMethodError,
-        CyclopsDimensionMismatch,
-        CyclopsMultiHotDimensionMismatch,
         CyclopsHypersphereDomainError,
+        CyclopsInputAndHypersphereDomainError,
+        CyclopsMultihotDomainError,
+        CyclopsMultihotMatrixShapeError,
+        CyclopsMultihotOffsetShapeError,
+        CyclopsDenseInverseShapeError,
+        CyclopsDenseShapeError,
+        CyclopsMultihotDimensionMismatch,
+        CyclopsInputDimensionMismatch,
+        CyclopsHypersphereNaNError,
         CyclopsHypersphereDivideError
     ]
 
     for T in concrete_errors
         @test !isabstracttype(T)
-    end # 12 concrete types, 12 tests
+    end # 11 concrete types, 11 tests
 
-end # 22 tests
+end # 14 tests
 
 @testset "Expected Errors" begin
     
@@ -83,89 +60,76 @@ end # 22 tests
         # Errors encountered while initializing a variable::cyclops
         
         @testset "Constructor Domain Errors" begin
-            # Method one for creating a variable::cyclops
-            # Using the method cyclops(n::Int[, m::Int=0, c::Int=2])
-            # For this method to work
-            # 1) c ≥ 2
+            
             @testset "Hypersphere Domain Error" begin
-                @test CyclopsConstructorHypersphereDomainError isa DataType
-                @test_throws CyclopsConstructorHypersphereDomainError cyclops(5, 0, 1)
+                @test CyclopsHypersphereDomainError isa DataType
+                @test_throws CyclopsHypersphereDomainError cyclops(5, 0, 1)
                 @test_throws "`c` = 1, but `c` must be ≥ 2." cyclops(5, 0, 1)
             end # 3 tests
-            # 2) n > c
+
             @testset "Input and Hypersphere Domain Error" begin
-                @test CyclopsConstructorInputAndHypersphereDomainError isa DataType
-                @test_throws CyclopsConstructorInputAndHypersphereDomainError cyclops(5, 0, 6)
+                @test CyclopsInputAndHypersphereDomainError isa DataType
+                @test_throws CyclopsInputAndHypersphereDomainError cyclops(5, 0, 6)
                 @test_throws "`n` = 5 ≤ `c`, but `n` must be > 6." cyclops(5, 0, 6)
             end # 3 tests
-            # 3) m ≥ 0
+
             @testset "Multi-hot Domain Error" begin
-                @test CyclopsConstructorMultihotDomainError isa DataType
-                @test_throws CyclopsConstructorMultihotDomainError cyclops(5, -1, 3)
+                @test CyclopsMultihotDomainError isa DataType
+                @test_throws CyclopsMultihotDomainError cyclops(5, -1, 3)
                 @test_throws "`m` = -1 < 0, but `m` must be ≥ 0." cyclops(5, -1, 3)
             end # 3 tests
             
         end # 9 tests
 
         @testset "Constructor Shape Errors" begin
-            # Method two for creating variable::cyclops
-            # Using the method cyclops(scale::Array{Float32}, mhoffset::Array{Float32}, offset::AbstractVecOrMat{Float32}, densein::Dense, denseout::Dense)
-            # For this method to work multihot parameters need to have specific dimensions
-            # scale is n x m
-            # mhoffset is n x m
-            # offset is n x 1 (or n x 0 if scale and mhoffset are n x 0)
+            
             @testset "Multi-hot Parameter Shape Error" begin
-                # When scale and mhoffset do not have the same dimensions
+                
                 @testset "Multi-hot Matrix Shape Error" begin
-                    @test CyclopsMultiHotMatrixShapeError isa DataType
-                    @test_throws CyclopsMultiHotMatrixShapeError cyclops(rand(Float32, 5, 3), rand(Float32, 6, 4), rand(Float32, 5), Flux.Dense(5 => 2), Flux.Dense(2 => 5))
+                    @test CyclopsMultihotMatrixShapeError isa DataType
+                    @test_throws CyclopsMultihotMatrixShapeError cyclops(rand(Float32, 5, 3), rand(Float32, 6, 4), rand(Float32, 5), Flux.Dense(5 => 2), Flux.Dense(2 => 5))
                     @test_throws "scale has dimensions (5, 3) ≠ (6, 4) dimensions of mhoffset." cyclops(rand(Float32, 5, 3), rand(Float32, 6, 4), rand(Float32, 5), Flux.Dense(5 => 2), Flux.Dense(2 => 5))
                 end # 3 tests
-                # When offset has the wrong number of rows
-                # Or when offset has the wrong number of columns
-                # If scale and mhoffset are n x 0, then offset must be n x 0 as well
-                # If scale and mhoffset are n x m, where m ≥ 1, then offset must be n x 1.
+                
                 @testset "Multi-hot Offset Shape Error" begin
-                    @test CyclopsMultiHotOffsetShapeError isa DataType
-                    @test_throws CyclopsMultiHotOffsetShapeError cyclops(rand(Float32, 5, 3), rand(Float32, 5, 3), rand(Float32, 6), Flux.Dense(5 => 2), Flux.Dense(2 => 5))
+                    @test CyclopsMultihotOffsetShapeError isa DataType
+                    @test_throws CyclopsMultihotOffsetShapeError cyclops(rand(Float32, 5, 3), rand(Float32, 5, 3), rand(Float32, 6), Flux.Dense(5 => 2), Flux.Dense(2 => 5))
                     @test_throws "expected dimensions (5,), but got (6,)." cyclops(rand(Float32, 5, 3), rand(Float32, 5, 3), rand(Float32, 6), Flux.Dense(5 => 2), Flux.Dense(2 => 5))
-                    @test_throws CyclopsMultiHotOffsetShapeError cyclops(rand(Float32, 5, 3), rand(Float32, 5, 3), rand(Float32, 5, 1), Flux.Dense(5 => 2), Flux.Dense(2 => 5))
+                    @test_throws CyclopsMultihotOffsetShapeError cyclops(rand(Float32, 5, 3), rand(Float32, 5, 3), rand(Float32, 5, 1), Flux.Dense(5 => 2), Flux.Dense(2 => 5))
                     @test_throws "expected dimensions (5,), but got (5, 1)." cyclops(rand(Float32, 5, 3), rand(Float32, 5, 3), rand(Float32, 5, 1), Flux.Dense(5 => 2), Flux.Dense(2 => 5))
-                    @test_throws CyclopsMultiHotOffsetShapeError cyclops(rand(Float32, 5, 0), rand(Float32, 5, 0), zeros(Float32, 5), Flux.Dense(5 => 2), Flux.Dense(2 => 5))
+                    @test_throws CyclopsMultihotOffsetShapeError cyclops(rand(Float32, 5, 0), rand(Float32, 5, 0), zeros(Float32, 5), Flux.Dense(5 => 2), Flux.Dense(2 => 5))
                     @test_throws "expected dimensions (5, 0), but got (5,)." cyclops(rand(Float32, 5, 0), rand(Float32, 5, 0), zeros(Float32, 5), Flux.Dense(5 => 2), Flux.Dense(2 => 5))
                 end # 7 tests
 
             end # 10 tests
-            # Accordingly, the dense layers need to have appropriate dimensions as well
-            # densein has dimensions n => c
-            # denseout has dimensions c => n
+            
             @testset "Dense Shape Error" begin
 
                 @testset "Dense Dimension Error" begin
 
                     @testset "Inverse Dimension Error" begin
-                        @test CyclopsInverseDimensionMismatch isa DataType
+                        @test CyclopsDenseInverseShapeError isa DataType
                         # densein and denseout must have inverse dimensions
-                        @test_throws CyclopsInverseDimensionMismatch cyclops(rand(Float32, 5, 0), rand(Float32, 5, 0), rand(Float32, 5, 0), Flux.Dense(5 => 2), Flux.Dense(3 => 5))
+                        @test_throws CyclopsDenseInverseShapeError cyclops(rand(Float32, 5, 0), rand(Float32, 5, 0), rand(Float32, 5, 0), Flux.Dense(5 => 2), Flux.Dense(3 => 5))
                         @test_throws "Expected 5 => 2 compression to be mirrored by 2 => 5 expansion, but got 3 => 5." cyclops(rand(Float32, 5, 0), rand(Float32, 5, 0), rand(Float32, 5, 0), Flux.Dense(5 => 2), Flux.Dense(3 => 5))
                         
-                        @test_throws CyclopsInverseDimensionMismatch cyclops(rand(Float32, 5, 0), rand(Float32, 5, 0), rand(Float32, 5, 0), Flux.Dense(4 => 1), Flux.Dense(2 => 7))
+                        @test_throws CyclopsDenseInverseShapeError cyclops(rand(Float32, 5, 0), rand(Float32, 5, 0), rand(Float32, 5, 0), Flux.Dense(4 => 1), Flux.Dense(2 => 7))
                         @test_throws "Expected 4 => 1 compression to be mirrored by 1 => 4 expansion, but got 2 => 7." cyclops(rand(Float32, 5, 0), rand(Float32, 5, 0), rand(Float32, 5, 0), Flux.Dense(4 => 1), Flux.Dense(2 => 7))
                     end # 3 tests
                     
                     @testset "Dense Compression Error" begin
-                        @test CyclopsDenseCompressionDimensionError isa DataType
+                        @test CyclopsDenseShapeError isa DataType
                         
-                        @test_throws CyclopsDenseCompressionDimensionError cyclops(rand(Float32, 5, 0), rand(Float32, 5, 0), rand(Float32, 5, 0), Flux.Dense(3 => 4), Flux.Dense(4 => 3))
+                        @test_throws CyclopsDenseShapeError cyclops(rand(Float32, 5, 0), rand(Float32, 5, 0), rand(Float32, 5, 0), Flux.Dense(3 => 4), Flux.Dense(4 => 3))
                         @test_throws "n => c ≥ 2, where n > c, but got 5 ≠ 3 => 4." cyclops(rand(Float32, 5, 0), rand(Float32, 5, 0), rand(Float32, 5, 0), Flux.Dense(3 => 4), Flux.Dense(4 => 3))
                         
-                        @test_throws CyclopsDenseCompressionDimensionError cyclops(rand(Float32, 5, 0), rand(Float32, 5, 0), rand(Float32, 5, 0), Flux.Dense(5 => 1), Flux.Dense(1 => 5))
+                        @test_throws CyclopsDenseShapeError cyclops(rand(Float32, 5, 0), rand(Float32, 5, 0), rand(Float32, 5, 0), Flux.Dense(5 => 1), Flux.Dense(1 => 5))
                         @test_throws "n => c ≥ 2, where n > c, but got 5 => 1 < 2." cyclops(rand(Float32, 5, 0), rand(Float32, 5, 0), rand(Float32, 5, 0), Flux.Dense(5 => 1), Flux.Dense(1 => 5))
                         
-                        @test_throws CyclopsDenseCompressionDimensionError cyclops(rand(Float32, 5, 0), rand(Float32, 5, 0), rand(Float32, 5, 0), Flux.Dense(6 => 2), Flux.Dense(2 => 6))
+                        @test_throws CyclopsDenseShapeError cyclops(rand(Float32, 5, 0), rand(Float32, 5, 0), rand(Float32, 5, 0), Flux.Dense(6 => 2), Flux.Dense(2 => 6))
                         @test_throws "n => c ≥ 2, where n > c, but got 5 ≠ 6 => 2." cyclops(rand(Float32, 5, 0), rand(Float32, 5, 0), rand(Float32, 5, 0), Flux.Dense(6 => 2), Flux.Dense(2 => 6))
                         
-                        @test_throws CyclopsDenseCompressionDimensionError cyclops(rand(Float32, 5, 0), rand(Float32, 5, 0), rand(Float32, 5, 0), Flux.Dense(7 => 1), Flux.Dense(1 => 7))
+                        @test_throws CyclopsDenseShapeError cyclops(rand(Float32, 5, 0), rand(Float32, 5, 0), rand(Float32, 5, 0), Flux.Dense(7 => 1), Flux.Dense(1 => 7))
                         @test_throws "n => c ≥ 2, where n > c, but got 5 ≠ 7 => 1 < 2." cyclops(rand(Float32, 5, 0), rand(Float32, 5, 0), rand(Float32, 5, 0), Flux.Dense(7 => 1), Flux.Dense(1 => 7))
                     end # 7 tests
 
@@ -178,31 +142,24 @@ end # 22 tests
     end # 29 tests
 
     @testset "Function Errors" begin
-        # There are 3 types of Cyclops Function Errors
-        # 1) Method Error
-        # when a cyclops model without multi-hot parameters is provided input and a multi-hot encoding vector
-        @testset "Method Error" begin
-            @test CyclopsMethodError isa DataType
-            @test_throws CyclopsMethodError cyclops(5,0,2)(randn(Float32, 5), ones(Int32, 2))
-            @test_throws "Multi-hot encoding provided to model without multi-hot parameters." cyclops(5,0,2)(randn(Float32, 5), ones(Int32, 2))
-        end # 3 tests
-        # 2) Dimension Mismatch
-        # when the input data to the model does not have the correct number of rows
+
         @testset "Dimension Mismatch" begin
-           @test CyclopsDimensionMismatch isa DataType
-           @test_throws CyclopsDimensionMismatch cyclops(5, 0, 3)(rand(Float32, 6))
+           @test CyclopsInputDimensionMismatch isa DataType
+           @test_throws CyclopsInputDimensionMismatch cyclops(5, 0, 3)(rand(Float32, 6))
            @test_throws "Input = 6 ≠ 5 = Multi-hot" cyclops(5, 0, 3)(rand(Float32, 6))
         end
 
         @testset "Multi-hot Dimension Mismatch" begin
-            @test CyclopsMultiHotDimensionMismatch isa DataType
-            @test_throws CyclopsMultiHotDimensionMismatch cyclops(5, 2, 3)(rand(Float32, 5), zeros(Int32, 3))
+            @test CyclopsMultihotDimensionMismatch isa DataType
+            @test_throws CyclopsMultihotDimensionMismatch cyclops(5, 2, 3)(rand(Float32, 5), zeros(Int32, 3))
             @test_throws "Multi-hot encoding = 3 ≠ 2 = Multi-hot Parameters" cyclops(5, 2, 3)(rand(Float32, 5), zeros(Int32, 3))
+            @test_throws CyclopsMultihotDimensionMismatch cyclops(5, 0, 3)(rand(Float32, 5), zeros(Int32, 3))
+            @test_throws "Multi-hot encoding = 3 ≠ 0 = Multi-hot Parameters" cyclops(5, 0, 3)(rand(Float32, 5), zeros(Int32, 3))
         end
 
     end
 
-end # 42 tests
+end # 41 tests
 
 # nparams
 @testset "nparams" begin
@@ -433,8 +390,8 @@ end
 
         # Tuple{typeof(⩕), Number, Number}
         @test_throws MethodError y1 ⩕ y1
-    end     # wedge on wedge, 6 tests
+    end # wedge on wedge, 6 tests
     
-end              # operators 73 tests
+end # operators 73 tests
 
-end
+end # 133 tests
