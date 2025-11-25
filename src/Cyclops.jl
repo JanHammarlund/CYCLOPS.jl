@@ -1,4 +1,4 @@
-module Cyclops
+module CYCLOPS
 
     export plusTwo
 
