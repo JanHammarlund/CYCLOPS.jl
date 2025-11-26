@@ -198,7 +198,7 @@ end
 Returns the total number of parameters in a `cyclops` model.
 
 # See also
-[`cyclops`](@ref), [`Flux.params`](@ref)
+[`cyclops`](@ref)
 
 # Examples
 ```julia-repl

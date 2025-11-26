@@ -64,7 +64,7 @@ julia> atan(hsn_output...)*180/pi # Angle of direction vector is retained
 ```
 
 # See also 
-[`cyclops`](@ref), [`mhe`](@ref), [`mhd`](@ref), [`nparams`](@ref), [`Flux.Dense`](@ref),
+[`cyclops`](@ref), [`mhe`](@ref), [`mhd`](@ref), [`nparams`](@ref),
 [`CyclopsHypersphereDomainError`](@ref), [`CyclopsHypersphereDivideError`](@ref), 
 [`CheckHSNdomain`](@ref)
 """
@@ -94,7 +94,7 @@ Inverse of [`mhd`](@ref).
 - `⊗` is matrix multiplication
 
 # See also
-[`cyclops`](@ref), [`mhd`](@ref), [`hsn`](@ref), [`nparams`](@ref), [`Flux.Dense`](@ref),
+[`cyclops`](@ref), [`mhd`](@ref), [`hsn`](@ref), [`nparams`](@ref),
 [`⊕`](@ref), [`⊖`](@ref), [`⊙`](@ref), [`⊗`](@ref), [`⊘`](@ref), [`⩕`](@ref)
 
 # Examples
@@ -164,7 +164,7 @@ Inverse of [`mhe`](@ref).
 - `⊗` is matrix multiplication
 
 # See also
-[`cyclops`](@ref), [`mhe`](@ref), [`hsn`](@ref), [`nparams`](@ref), [`Flux.Dense`](@ref)
+[`cyclops`](@ref), [`mhe`](@ref), [`hsn`](@ref), [`nparams`](@ref)
 
 # Examples 
 ```julia-repl

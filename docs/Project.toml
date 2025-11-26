@@ -1,0 +1,9 @@
+[deps]
+Cyclops = "d909977f-157f-4d80-91d6-6db50a32a137"
+Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
+
+[compat]
+Documenter = "1"
+
+[sources]
+Cyclops = {path = ".."}

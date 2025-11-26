@@ -28,7 +28,7 @@ When `h` is `missing` steps `1` and `5` are skipped and steps `2`-`4` are perfor
     x₃ = m.denseout(x₂) = m.denseout.weight ⊗ x₂ + m.denseout.bias
 
 # See also
-[`mhe`](@ref), [`mhd`](@ref), [`hsn`](@ref), [`Flux.Dense`](@ref), [`nparams`](@ref)
+[`mhe`](@ref), [`mhd`](@ref), [`hsn`](@ref), [`nparams`](@ref)
 
 # Examples
 ```julia-repl
