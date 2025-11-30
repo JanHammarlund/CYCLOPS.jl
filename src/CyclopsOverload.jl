@@ -115,9 +115,9 @@ function (m::cyclops)(input_data::AbstractVector{T}, multihot::AbstractVector{<:
     return output
 end
 
-function (m::cyclops)(input_data::AbstractVector{T}, multihot::Missing=missing; silence::Bool=false) where {T<:AbstractFloat}
-    silence || length(m.scale) == 0 || @warn "Cyclops model with multi-hot parameters used without multi-hot encoding."
-    CheckCyclopsInput(input_data, multihot, m.scale)
+function (m::cyclops)(input_data::AbstractVector{T}) where {T<:AbstractFloat}
+    length(m.scale) == 0 || @warn "Cyclops model with multi-hot parameters used without multi-hot encoding."
+    CheckCyclopsInput(input_data, m.scale)
     dense_encoding = m.densein(input_data)
     circular_encoding = hsn(dense_encoding)
     output = m.denseout(circular_encoding)
@@ -126,21 +126,11 @@ end
 
 function (m::cyclops)(input_data::AbstractMatrix{T}, multi_hot::AbstractMatrix{<:Integer}) where {T<:AbstractFloat}
     size(input_data, 2) == size(multi_hot, 2) || throw(DimensionMismatch("`x` and `h` do not have matching number of columns."))
-    output = similar(input_data)
-    @inbounds for jj in axes(input_data, 2)
-        xj = view(input_data, :, jj)
-        hj = view(multi_hot, :, jj)
-        output[:, jj] = m(xj, hj)
-    end
-    return output
+    return hcat(m(view(input_data, :, jj), view(multi_hot, :, jj)) for jj in axes(input_data, 2)...)
 end
 
-function (m::cyclops)(input_data::AbstractMatrix{T}, multi_hot::Missing=missing; silence::Bool=false) where {T<:AbstractFloat}
-    output = similar(input_data)
-    @inbounds for (jj, xj) in enumerate(eachcol(input_data))
-        output[:, jj] = m(xj, multi_hot, silence = silence)
-    end
-    return output
+function (m::cyclops)(input_data::AbstractMatrix{T}) where {T<:AbstractFloat}
+    return hcat(m.(eachcol(input_data))...)
 end
 
 
@@ -162,7 +152,7 @@ function CheckCyclopsInput(x::AbstractVector{T}, h::AbstractVector{<:Integer}, m
     return nothing
 end
 
-function CheckCyclopsInput(x::AbstractVector{T}, h::Missing, m::Array{Float32}) where {T<:AbstractFloat}
+function CheckCyclopsInput(x::AbstractVector{T}, m::Array{Float32}) where {T<:AbstractFloat}
     (length(x) != size(m, 1)) && throw(CyclopsInputDimensionMismatch(x, m))
 
     return nothing
