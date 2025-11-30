@@ -351,7 +351,7 @@ ERROR: CyclopsHypersphereNaNError: `NaN` at [2].
 [`CheckHSNdomain`](@ref), [`CyclopsHypersphereDivideError`](@ref), [`cyclops`](@ref)
 """
 struct CyclopsHypersphereNaNError <: CyclopsFunctionError
-    x::Array{Float32}
+    x::AbstractArray{<:AbstractFloat}
 end
 
 Base.showerror(io::IO, e::CyclopsHypersphereNaNError) = begin

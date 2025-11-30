@@ -21,7 +21,7 @@ julia> CheckHSNdomain([1f0, 1f0])
 julia> CheckHSNdomain([1, NaN])
 ```
 """
-function CheckHSNdomain(x::Vector{Float32})
+function CheckHSNdomain(x::AbstractVector{T}) where {T<:AbstractFloat}
     any(isnan.(x)) && throw(CyclopsHypersphereNaNError(x))
     all(x .== 0) && throw(CyclopsHypersphereDivideError())
 
@@ -68,7 +68,7 @@ julia> atan(hsn_output...)*180/pi # Angle of direction vector is retained
 [`CyclopsHypersphereDomainError`](@ref), [`CyclopsHypersphereDivideError`](@ref), 
 [`CheckHSNdomain`](@ref)
 """
-function hsn(x::Vector{Float32})::Array{Float32}
+function hsn(x::AbstractVector{T}) where {T<:AbstractFloat}
     CheckHSNdomain(x)
     return x ⊘ sqrt(sum(x ⩕ 2))
 end
@@ -137,10 +137,10 @@ julia> isapprox(x, mhd_recovery, atol=1E-6)
 true
 ```
 """
-function mhe(input_data::Vector{Float32}, multihot::Vector{Int32}, m::cyclops; skip_check=false)::Array{Float32}
+function mhe(input_data::AbstractVector{T}, multihot::AbstractVector{<:Integer}, m::cyclops; skip_check::Bool=false) where {T<:AbstractFloat}
     skip_check || CheckCyclopsInput(input_data, multihot, m.scale)
     
-    return input_data ⊙ (1 ⊕ (m.scale ⊗ multihot)) ⊕ (m.mhoffset ⊗ multihot) ⊕ reshape(m.offset, length(input_data))
+    return input_data ⊙ (1 ⊕ (m.scale ⊗ multihot)) ⊕ (m.mhoffset ⊗ multihot) ⊕ m.offset
 end
 
 
@@ -206,8 +206,8 @@ julia> isapprox(x, mhd_recovery, atol=1E-6)
 true
 ```
 """
-function mhd(dense_decoding::Vector{Float32}, multihot::Vector{Int32}, m::cyclops; skip_check=false)::Array{Float32}
+function mhd(dense_decoding::AbstractVector{T}, multihot::AbstractVector{<:Integer}, m::cyclops; skip_check::Bool=false) where {T<:AbstractFloat}
     skip_check || CheckCyclopsInput(dense_decoding, multihot, m.scale)
 
-    return (dense_decoding ⊖ (m.mhoffset ⊗ multihot) ⊖ reshape(m.offset, length(dense_decoding))) ⊘ (1 ⊕ (m.scale ⊗ multihot))
+    return (dense_decoding ⊖ (m.mhoffset ⊗ multihot) ⊖ m.offset) ⊘ (1 ⊕ (m.scale ⊗ multihot))
 end
