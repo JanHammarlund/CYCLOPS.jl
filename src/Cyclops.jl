@@ -1,23 +1,14 @@
 module Cyclops
 
-using CUDA, Flux, Statistics, ProgressMeter, Plots, Random
+using CUDA, Flux, Statistics, ProgressMeter, Random, CairoMakie
 
 include("CyclopsErrors.jl")
 
 export CyclopsError, CyclopsConstructorError, CyclopsFunctionError
-export CyclopsHypersphereDomainError, CyclopsInputAndHypersphereDomainError, CyclopsMultihotDomainError
-export CyclopsMultihotMatrixShapeError, CyclopsMultihotOffsetShapeError
-export CyclopsDenseInverseShapeError, CyclopsDenseShapeError
-export CyclopsMultihotDimensionMismatch, CyclopsInputDimensionMismatch
-export CyclopsHypersphereNaNError, CyclopsHypersphereDivideError
 
 include("CyclopsOperators.jl")
-
-export ⊙, ⊗, ⊕, ⊖, ⊘, ⩕
-
 include("CyclopsConstructors.jl")
 
-export CheckCyclopsConstructorInput
 export nparams
 
 include("CyclopsOverload.jl")
